@@ -1,0 +1,14 @@
+[package]
+name = "filco-protocol"
+description = "FILCO Assist (Costar) feature-report protocol: packets, checksum, page read and write sessions"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+filco-core = { path = "../filco-core" }
+thiserror = "2.0.21"

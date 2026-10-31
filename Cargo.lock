@@ -908,6 +908,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "filco-protocol"
+version = "0.1.0"
+dependencies = [
+ "filco-core",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "filco-sim"
+version = "0.1.0"
+dependencies = [
+ "filco-core",
+ "filco-protocol",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
