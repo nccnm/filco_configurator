@@ -74,6 +74,12 @@ impl Clock for VirtualClock {
     }
 }
 
+impl<C: Clock + ?Sized> Clock for Box<C> {
+    fn sleep(&mut self, d: Duration) {
+        (**self).sleep(d);
+    }
+}
+
 impl<C: Clock + ?Sized> Clock for &mut C {
     fn sleep(&mut self, d: Duration) {
         (**self).sleep(d);

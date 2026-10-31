@@ -3,4 +3,11 @@
 //! Testable without Tauri and without a keyboard.
 #![forbid(unsafe_code)]
 
+pub mod backend;
+pub mod device;
 pub mod discovery;
+pub mod editor;
+pub mod guard;
+pub mod journal;
+pub mod store;
+pub mod writer;
