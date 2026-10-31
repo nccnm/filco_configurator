@@ -26,6 +26,9 @@ function Step([string]$name, [scriptblock]$body) {
 Step 'text rules (no em dash, no machine paths in fixtures)' { pwsh -NoProfile -File scripts/check-text.ps1 }
 Step 'cargo fmt' { cargo fmt --all --check }
 Step 'cargo clippy' { cargo clippy --workspace --all-targets --locked -- -D warnings }
+Step 'cargo clippy (e2e-sim build)' {
+  cargo clippy -p keyboard-layer-editor --all-targets --features e2e-sim --locked -- -D warnings
+}
 Step 'cargo test' { cargo test --workspace --locked }
 if (-not $Quick) {
   Step 'exhaustive slot round-trip (release)' { cargo test -p filco-core --release --locked -- --ignored exhaustive }

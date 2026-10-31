@@ -3,6 +3,7 @@
 //! Testable without Tauri and without a keyboard.
 #![forbid(unsafe_code)]
 
+pub mod assist_config;
 pub mod backend;
 pub mod device;
 pub mod discovery;
