@@ -71,9 +71,13 @@ async function readTime(paceMs) {
 
 function processMemory(rootPid) {
   const script = `
-    $all = Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, PrivatePageCount, CommandLine
+    $all = Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, Name, PrivatePageCount, CommandLine, CreationDate
+    # A parent id can be reused by an unrelated, older process: a real child never predates its parent.
+    $born = @{}; foreach ($p in $all) { $born[[int]$p.ProcessId] = $p.CreationDate }
     $ids = [System.Collections.Generic.HashSet[int]]::new(); [void]$ids.Add(${rootPid})
-    do { $n = $ids.Count; foreach ($p in $all) { if ($ids.Contains([int]$p.ParentProcessId)) { [void]$ids.Add([int]$p.ProcessId) } } } while ($ids.Count -ne $n)
+    do { $n = $ids.Count; foreach ($p in $all) {
+      $parent = [int]$p.ParentProcessId
+      if ($ids.Contains($parent) -and $p.CreationDate -ge $born[$parent]) { [void]$ids.Add([int]$p.ProcessId) } } } while ($ids.Count -ne $n)
     $all | Where-Object { $ids.Contains([int]$_.ProcessId) } | ForEach-Object {
       $t = if ($_.CommandLine -match '--type=([a-z-]+)') { $matches[1] } else { 'main' }
       "$($_.Name)|$t|$($_.PrivatePageCount)" }`;

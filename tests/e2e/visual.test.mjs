@@ -106,6 +106,10 @@ describe("visual baselines", () => {
       await (await byTest(browser, "diff-dialog")).waitForDisplayed({ timeout: 10000 });
       await waitIdle(browser);
       await check(browser, "diff-light");
+      // The scrim must hide the page in dark mode too (review: it was almost invisible there).
+      await setTheme(browser, "dark");
+      await check(browser, "diff-dark");
+      await setTheme(browser, "light");
       await click(browser, "diff-cancel");
       await waitIdle(browser);
     });

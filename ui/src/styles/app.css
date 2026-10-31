@@ -15,6 +15,10 @@
   --good: #2e7d4f;
   --warn-bg: #f7f1df;
   --bad-bg: #f8e9e7;
+  /* Behind dialogs: the page must clearly recede, in both modes. */
+  --scrim: rgb(20 22 25 / 38%);
+  --dialog-shadow: 0 18px 50px rgb(0 0 0 / 22%);
+  --pop-shadow: 0 10px 30px rgb(0 0 0 / 16%);
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-key: "IBM Plex Sans Condensed", "Arial Narrow", "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", Consolas, monospace;
@@ -37,6 +41,9 @@
     --good: #6cc28f;
     --warn-bg: #2a2516;
     --bad-bg: #2e1b1a;
+    --scrim: rgb(0 0 0 / 70%);
+    --dialog-shadow: 0 18px 60px rgb(0 0 0 / 60%);
+    --pop-shadow: 0 10px 30px rgb(0 0 0 / 55%);
     color-scheme: dark;
   }
 }
@@ -55,6 +62,9 @@
   --good: #6cc28f;
   --warn-bg: #2a2516;
   --bad-bg: #2e1b1a;
+  --scrim: rgb(0 0 0 / 70%);
+  --dialog-shadow: 0 18px 60px rgb(0 0 0 / 60%);
+  --pop-shadow: 0 10px 30px rgb(0 0 0 / 55%);
   color-scheme: dark;
 }
 

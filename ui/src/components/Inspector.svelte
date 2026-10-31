@@ -113,12 +113,47 @@
     extraLayers = extraLayers.includes(l) ? extraLayers.filter((x) => x !== l) : [...extraLayers, l];
   }
 
+  const shortcuts = $derived<[string[], Key][]>([
+    [["1", "-", `${model.layers.length}`], "sc_layer"],
+    [["←", "↑", "↓", "→"], "sc_move"],
+    [["Enter"], "sc_select"],
+    [["Esc"], "sc_deselect"],
+    [["Delete"], "sc_clear"],
+    [["Ctrl", "+", "Z"], "sc_undo"],
+    [["Ctrl", "+", "Y"], "sc_redo"],
+    [["Ctrl", "+", "S"], "sc_save"],
+  ]);
+
   const rawValid = $derived(/^\s*([0-9a-f]{2}\s*){4}$/i.test(raw));
 </script>
 
 <section class="inspector" data-testid="inspector">
   {#if !keyView || !slot}
-    <p class="hint muted">{t("no_key_selected")}</p>
+    <header class="info" data-testid="no-key">
+      <h2 class="muted">{t("no_key_title")}</h2>
+      <span class="what muted">{t("no_key_selected")}</span>
+    </header>
+    <div class="tabs" role="tablist" aria-disabled="true">
+      {#each TABS as [id, label] (id)}
+        <button role="tab" class="tab" aria-selected="false" disabled>{t(label)}</button>
+      {/each}
+      <span class="later muted small">{t("macro_later")}</span>
+    </div>
+    <div class="panel">
+      <h3 class="small muted">{t("shortcuts")}</h3>
+      <dl class="shortcuts">
+        {#each shortcuts as [keys, label] (label)}
+          <div>
+            <dt>
+              {#each keys as k, i (i)}{#if k === "-" || k === "+"}<span class="sep">{k}</span>{:else}<kbd
+                    >{k}</kbd
+                  >{/if}{/each}
+            </dt>
+            <dd>{t(label)}</dd>
+          </div>
+        {/each}
+      </dl>
+    </div>
   {:else}
     <header class="info">
       <h2>{t("key_info", { key: keyView.legend, index: keyView.index })}</h2>
@@ -345,8 +380,49 @@
     gap: 8px;
     min-height: 0;
   }
-  .hint {
-    margin: 6px 0;
+  .tab:disabled {
+    opacity: 0.45;
+  }
+  .shortcuts {
+    margin: 2px 0 0;
+    display: grid;
+    /* Two columns read top to bottom: picking keys on the left, editing and saving on the right. */
+    grid-template-columns: repeat(2, minmax(0, 480px));
+    grid-template-rows: repeat(4, auto);
+    grid-auto-flow: column;
+    gap: 8px 40px;
+  }
+  .shortcuts div {
+    display: grid;
+    grid-template-columns: 150px 1fr;
+    align-items: center;
+    gap: 10px;
+  }
+  .shortcuts dt {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .shortcuts dd {
+    margin: 0;
+    font-size: 14px;
+  }
+  kbd {
+    min-width: 30px;
+    height: 28px;
+    padding: 0 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    box-shadow: inset 0 -2px 0 var(--soft);
+    font: 500 13px var(--font-key);
+    color: var(--ink);
+  }
+  .sep {
+    color: var(--line);
+    font-size: 13px;
   }
   .info {
     display: flex;
@@ -415,7 +491,10 @@
     overflow-y: auto;
     min-height: 0;
     flex: 1;
-    padding-top: 4px;
+    padding: 4px 0 18px;
+    /* A row cut by the bottom edge fades out instead of ending in a hard slice; at the end of the scroll the
+       padding keeps the last row clear of the fade. */
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
   }
   .row {
     display: flex;

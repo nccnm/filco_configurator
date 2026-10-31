@@ -44,8 +44,8 @@
     </ul>
   {/if}
   {#snippet footer()}
-    <button class="ghost" onclick={onopenfolder}>{t("open_backup_folder")}</button>
-    <button class="ghost" onclick={onpickfolder}>{t("load_backup_folder")}</button>
+    <button onclick={onopenfolder}>{t("open_backup_folder")}</button>
+    <button onclick={onpickfolder}>{t("load_backup_folder")}</button>
     <span class="spacer"></span>
     <button onclick={onclose}>{t("close")}</button>
   {/snippet}

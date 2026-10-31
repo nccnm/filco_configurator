@@ -496,12 +496,14 @@
   .app {
     height: 100%;
     display: grid;
+    /* header, layer tabs, banners, keyboard, inspector (fills the rest) */
     grid-template-rows: auto auto auto minmax(0, auto) minmax(0, 1fr);
     max-width: 1440px;
     margin: 0 auto;
   }
   .app.idle {
-    grid-template-rows: auto auto auto minmax(0, 1fr);
+    /* header, banners, the centred screen */
+    grid-template-rows: auto auto minmax(0, 1fr);
   }
   .top {
     display: flex;
@@ -648,7 +650,8 @@
   }
   .screen {
     margin: auto;
-    padding: 48px 20px;
+    /* Sits a little above the true centre, where the eye expects it. */
+    padding: 48px 20px 120px;
     max-width: 560px;
     text-align: center;
     display: grid;
@@ -660,6 +663,7 @@
   }
   .screen p {
     margin: 0;
+    text-wrap: balance;
   }
   .screen .buttons {
     display: flex;

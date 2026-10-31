@@ -57,7 +57,7 @@
     background: var(--paper);
     border: 1px solid var(--line);
     border-radius: 8px;
-    box-shadow: 0 10px 30px rgb(0 0 0 / 16%);
+    box-shadow: var(--pop-shadow);
     padding: 5px;
     display: grid;
   }

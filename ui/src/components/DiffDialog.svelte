@@ -2,6 +2,7 @@
   import type { ModelView, PlanView, ProgressView } from "../bindings/ipc";
   import type { Key } from "../lib/i18n";
   import Modal from "./Modal.svelte";
+  import Path from "./Path.svelte";
   import Progress from "./Progress.svelte";
 
   interface Props {
@@ -36,7 +37,7 @@
   wide
   onclose={writing ? undefined : oncancel}
 >
-  <p class="small">{t("diff_intro")} <code class="path">{plan.backup}</code></p>
+  <p class="small">{t("diff_intro")} <Path path={plan.backup} /></p>
   {#if plan.experimental}
     <p class="banner warn small">{t("experimental")}</p>
   {/if}
@@ -50,24 +51,26 @@
           <th>{t("diff_layer")}</th>
           <th>{t("diff_key")}</th>
           <th>{t("diff_old")}</th>
-          <th></th>
+          <th class="arrow"></th>
           <th>{t("diff_new")}</th>
-          <th>{t("diff_bytes")}</th>
+          <th class="fill">{t("diff_bytes")}</th>
         </tr>
       </thead>
       <tbody>
         {#each plan.changes as c (`${c.layer}-${c.index}`)}
           {@const l = model.layers[c.layer]}
           <tr class="l{c.layer}">
-            <td class="layer"
-              ><span
-                class="led"
-                style:background={l?.led}
-                style:border-color={l?.led === "#ffffff" ? "" : l?.led}
-              ></span>{l?.label}</td
+            <td
+              ><span class="layer"
+                ><span
+                  class="led"
+                  style:background={l?.led}
+                  style:border-color={l?.led === "#ffffff" ? "" : l?.led}
+                ></span>{l?.label}</span
+              ></td
             >
             <td class="key">{c.legend ?? t("outside_layout", { index: c.index })}</td>
-            <td>{label(c.old.long)}</td>
+            <td class="old">{label(c.old.long)}</td>
             <td class="arrow">→</td>
             <td class="new">{label(c.new.long)}</td>
             <td class="mono bytes">{c.old.hex} → {c.new.hex}</td>
@@ -90,9 +93,6 @@
 </Modal>
 
 <style>
-  .path {
-    word-break: break-all;
-  }
   .banner {
     margin: 0;
     padding: 7px 11px;
@@ -105,7 +105,7 @@
   }
   .table-wrap {
     max-height: 46vh;
-    overflow-y: auto;
+    overflow: auto;
   }
   table {
     border-collapse: collapse;
@@ -116,19 +116,34 @@
     text-align: left;
     font: 500 12.5px var(--font-key);
     opacity: 0.65;
-    padding: 0 12px 6px 0;
+    padding: 0 18px 6px 0;
     border-bottom: 1px solid var(--line);
     position: sticky;
     top: 0;
     background: var(--paper);
   }
   td {
-    padding: 7px 12px 7px 0;
+    padding: 7px 18px 7px 0;
     border-bottom: 1px solid var(--soft);
     vertical-align: top;
   }
-  .layer {
+  /* Every column hugs its content; the byte column takes what is left, so the arrow sits right next to the old
+     and the new action. */
+  th,
+  td {
+    width: 1%;
     white-space: nowrap;
+  }
+  th.fill,
+  td.bytes {
+    width: auto;
+  }
+  td.old,
+  th:nth-child(3),
+  .arrow {
+    padding-right: 10px;
+  }
+  .layer {
     display: flex;
     align-items: center;
     gap: 7px;

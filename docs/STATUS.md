@@ -23,8 +23,8 @@ chạy trên thiết bị giả. Không chạy trình cập nhật firmware.
 ## 2. Bộ cài
 
 - File: `D:\AI\filco_configurator\target\release\bundle\nsis\Keyboard Layer Editor_0.1.0_x64-setup.exe`
-- Kích thước: 2,12 MB (2 218 902 byte; ngân sách 6 MB)
-- SHA-256: `639a4af0c0a518570981ecd60a8af7f3aac73dd377af77906a933716f3691b8b` (cũng nằm trong file `.sha256` cạnh bộ cài)
+- Kích thước: 2,12 MB (2 220 385 byte; ngân sách 6 MB)
+- SHA-256: `5dc43f41fa897a25af646ea5f9f0de4b4732d027afc9d603e9f72679ab24477e` (cũng nằm trong file `.sha256` cạnh bộ cài)
 - Cài cho người dùng hiện tại vào `%LOCALAPPDATA%\Keyboard Layer Editor`, không cần admin. `scripts/release.ps1
   -InstallTest` đã cài im lặng, kiểm file, gỡ im lặng: OK.
 - Chưa ký số: SmartScreen sẽ cảnh báo; README hướng dẫn kiểm SHA-256 rồi *More info > Run anyway*.
@@ -44,7 +44,7 @@ chạy trên thiết bị giả. Không chạy trình cập nhật firmware.
 | Property: trang ngẫu nhiên qua dây, chuỗi sửa ngẫu nhiên + undo/redo, sao lưu và file xuất | `tests/properties.rs` (2 crate) | đạt |
 | `cargo deny` (giấy phép, nguồn, advisory) | `check.ps1`, `release.ps1` | đạt |
 | prettier, eslint, svelte-check, vitest (10 test) | `scripts/check.ps1` | đạt |
-| E2E qua WebDriver trên bản `e2e-sim` (10 kịch bản người dùng) + 6 ảnh chuẩn so pixel | `scripts/e2e.ps1 -Runs 3` | **16/16 đạt cả 3 lần liên tiếp** |
+| E2E qua WebDriver trên bản `e2e-sim` (10 kịch bản người dùng) + 7 ảnh chuẩn so pixel | `scripts/e2e.ps1 -Runs 3` | **17/17 đạt cả 3 lần liên tiếp** |
 | Benchmark | `cargo bench`, `tests/e2e/perf.mjs` | mục 4 |
 | Bộ cài: kích thước, JS+CSS, cài / gỡ | `scripts/release.ps1 -InstallTest` | đạt |
 | Tích hợp với bàn phím thật (chỉ đọc): bản phát hành tự đọc 4 layer | thủ công qua WebDriver | đúng: M10 = Fn, Alt trái = Alt, Space trái lớp 3 = Esc, P lớp 4 = Shift+Win+S, khớp cấu hình `Layer4Snip` |
@@ -64,25 +64,25 @@ thoại kết quả (D18); màn hình "chưa có bàn phím" nháy 300 ms lúc k
 
 | Chỉ số | Ngân sách | Đo được | |
 |---|---|---|---|
-| Khởi động tới khung hình đầu (trung vị 10 lần, chạy thẳng file exe) | ≤ 400 ms | **305 ms** | đạt |
-| trong đó: Tauri + WebView2 tới lúc trang bắt đầu | | 248 ms | |
-| trong đó: phần của ứng dụng (trang tới khung hình đầu) | ≤ 100 ms | **51 ms** | đạt |
-| Khởi động tới tương tác được (không thiết bị) | ≤ 600 ms | **313 ms** | đạt |
+| Khởi động tới khung hình đầu (trung vị 10 lần, chạy thẳng file exe) | ≤ 400 ms | **317 ms** | đạt |
+| trong đó: Tauri + WebView2 tới lúc trang bắt đầu | | 258 ms | |
+| trong đó: phần của ứng dụng (trang tới khung hình đầu) | ≤ 100 ms | **53 ms** | đạt |
+| Khởi động tới tương tác được (không thiết bị) | ≤ 600 ms | **327 ms** | đạt |
 | Liệt kê thiết bị (criterion, máy thật, không gửi report) | ≤ 50 ms | **0,53 ms** (lần đầu nguội qua CLI: 2,2 ms) | đạt |
 | Chi phí ứng dụng khi đọc 4 layer (criterion, thiết bị giả không chờ) | ≤ 5 ms | **3,8 µs** | đạt |
-| Đọc 4 layer, khoảng chờ 100 ms (thiết bị giả có độ trễ thật, tới khi hiện trên màn hình) | ≤ 5,0 s | **4,82 s**; máy thật qua CLI 4,83 s | đạt |
+| Đọc 4 layer, khoảng chờ 100 ms (thiết bị giả có độ trễ thật, tới khi hiện trên màn hình) | ≤ 5,0 s | **4,83 s**; máy thật qua CLI 4,83 s | đạt |
 | Đọc 4 layer, khoảng chờ 15 ms | ≤ 1,0 s | **0,75 s**; máy thật qua CLI 0,75 s | đạt |
-| Bấm phím trên hình tới khi vẽ xong (DOM + layout, p95 trên 200 lần) | ≤ 16 ms | **0,9 ms** (tới khung hình kế: 17,5 ms, tức là ngay khung kế tiếp) | đạt |
-| Đổi layer (p95, 200 lần) | ≤ 16 ms | **2,9 ms** (khung kế: 17,7 ms) | đạt |
-| Gán hành động tới khi phím vẽ lại, gồm IPC sang Rust (p95, 100 lần) | ≤ 50 ms | **17,7 ms** | đạt |
-| Bộ nhớ tiến trình Rust (sau đọc 4 layer + 500 thao tác) | ≤ 40 MB | **6,1 MB** | đạt |
-| Bộ nhớ tổng gồm WebView2 (cùng lúc) | ≤ 220 MB | **207 MB** | đạt (sát; D13) |
+| Bấm phím trên hình tới khi vẽ xong (DOM + layout, p95 trên 200 lần) | ≤ 16 ms | **0,9 ms** (tới khung hình kế: 17,8 ms, tức là ngay khung kế tiếp) | đạt |
+| Đổi layer (p95, 200 lần) | ≤ 16 ms | **2,9 ms** (khung kế: 17,6 ms) | đạt |
+| Gán hành động tới khi phím vẽ lại, gồm IPC sang Rust (p95, 100 lần) | ≤ 50 ms | **17,9 ms** | đạt |
+| Bộ nhớ tiến trình Rust (sau đọc 4 layer + 500 thao tác) | ≤ 40 MB | **5,9 MB** | đạt |
+| Bộ nhớ tổng gồm WebView2 (cùng lúc) | ≤ 220 MB | **217 MB** | đạt (sát; D13) |
 | Bộ cài NSIS | ≤ 6 MB | **2,12 MB** | đạt |
-| JS + CSS gzip (không tính font) | ≤ 80 KB | **38,8 KB** | đạt |
+| JS + CSS gzip (không tính font) | ≤ 80 KB | **39,8 KB** | đạt |
 
 Ghi chú: "tới khung hình kế" luôn khoảng 16-18 ms vì phải chờ nhịp vẽ 60 Hz; con số đúng với ngân sách "một khung
 hình" là thời gian xử lý (0,9 ms và 2,9 ms), tức là cập nhật luôn kịp khung hình ngay sau cú bấm. Bộ nhớ tổng tính mọi
-tiến trình con của ứng dụng (WebView2: browser 38,5, renderer 118,7, GPU 21,8, utility 12,1 + 7,5, crashpad 2,6 MB).
+tiến trình con của ứng dụng (WebView2: browser 38,3, renderer 123,6, GPU 26,9, utility 12,0 + 7,5, crashpad 2,6 MB).
 Renderer tăng khoảng 8 MB mỗi 100 lần gán liên tục và trả lại một phần khi rảnh (heap JS ổn định 5-20 MB); với cách dùng
 thật (vài chục lần gán) còn xa ngân sách.
 
@@ -141,6 +141,18 @@ Các ảnh còn lại: `02-reading`, `04-layer3`, `06-tab-modifier|media|mouse|s
 Điểm đã soi và sửa qua ảnh: thiếu khoảng trắng sau dấu "·" ở dòng phụ đề, tổ hợp 3 modifier cỡ chữ 5 px, tiêu đề còn
 tên model khi đã rút cáp, menu còn mở trong ảnh, nhóm phím "F" khó hiểu (nay "Phím F"), dòng "đã sửa" quá dài khi ô cũ
 trống, màn hình "chưa có bàn phím" nháy lúc khởi động.
+
+Sửa theo review giao diện vòng 1 (`docs/screenshots/` sinh lại toàn bộ, ảnh chuẩn E2E cập nhật):
+
+| Điểm | Sửa |
+|---|---|
+| Lớp phủ sau hộp thoại gần như không thấy ở chế độ tối | Màu lớp phủ và bóng hộp thoại thành token theo chế độ (`--scrim`, `--dialog-shadow`): tối dùng đen 70 %. Áp cho mọi hộp thoại (khác biệt, kết quả ghi, sao lưu, journal) vì chúng cùng dùng `Modal`. Thêm ảnh chuẩn `diff-dark` để lỗi này không quay lại |
+| Bảng khác biệt: cột "Đang có" quá rộng, mũi tên xa nội dung | Mọi cột co theo nội dung, cột byte nhận phần còn lại; mũi tên cách hai bên 10 px. Ô layer không còn `display: flex` trên chính `td` |
+| Màn hình chưa chọn phím trống nửa dưới | Inspector giữ nguyên khung: tiêu đề "Chưa chọn phím", hàng tab (tắt), và bảng phím tắt hai cột (chọn phím bên trái; sửa và lưu bên phải) vẽ bằng keycap nhỏ |
+| Soi lại các ảnh khác | Đường dẫn sao lưu chỉ xuống dòng sau dấu `\` (trước đó gãy giữa timestamp hoặc giữa "filco-m10sp"); vùng cuộn của inspector mờ dần ở mép dưới thay vì cắt ngang một hàng nút; hai nút ở chân hộp thoại sao lưu có viền để thẳng lề với nội dung; bóng menu "Thêm" thấy được ở chế độ tối; màn hình "chưa có bàn phím" canh giữa theo chiều dọc (lưới gốc có một hàng thừa) và đoạn chữ xuống dòng cân |
+
+Đo lại sau khi sửa: bộ nhớ tổng 217 MB (trước 207 MB; renderer +5 MB, GPU +5 MB), vẫn dưới 220 MB nhưng sát; script
+đo cũng được sửa để không đếm nhầm tiến trình lạ có PID cha bị tái dùng (lần đo đầu có một `AutoHotkey64.exe` 3 MB).
 
 ## 7. Còn lại và giới hạn
 
@@ -208,5 +220,6 @@ Chuẩn bị (làm một lần):
 | M4 `filco-service`: phiên sửa, sao lưu, journal, ghi an toàn | `f7dab43` |
 | M5 lớp Tauri + giao diện | `8b5f513`, `00b1c8c` |
 | M6 E2E, hiệu năng, ảnh chuẩn, bộ cài | `9d4410a`, `4304dae` |
-| M8 property test, `cargo deny`, README, DECISIONS, STATUS, ảnh chụp | `3897de2` và commit cuối |
+| M8 property test, `cargo deny`, README, DECISIONS, STATUS, ảnh chụp | `3897de2`, `fe13a37` |
+| Sửa theo review implement vòng 1 | commit cuối |
 | M7 giả lập firmware | không làm (mục 7) |

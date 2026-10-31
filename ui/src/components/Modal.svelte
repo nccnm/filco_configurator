@@ -43,7 +43,7 @@
     border-radius: 10px;
     background: var(--paper);
     color: var(--ink);
-    box-shadow: 0 18px 50px rgb(0 0 0 / 22%);
+    box-shadow: var(--dialog-shadow);
     display: flex;
     flex-direction: column;
   }
@@ -54,7 +54,7 @@
     width: min(920px, calc(100vw - 48px));
   }
   dialog::backdrop {
-    background: rgb(20 22 25 / 38%);
+    background: var(--scrim);
   }
   header {
     padding: 16px 22px 10px;

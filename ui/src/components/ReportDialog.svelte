@@ -2,6 +2,7 @@
   import type { ModelView, ReportView } from "../bindings/ipc";
   import type { Key } from "../lib/i18n";
   import Modal from "./Modal.svelte";
+  import Path from "./Path.svelte";
 
   interface Props {
     report: ReportView;
@@ -46,7 +47,7 @@
       <code class="small">{report.error}</code>
     </details>
   {/if}
-  <p class="small muted">{t("backup_at", { path: report.backup })}</p>
+  <p class="small muted">{t("backup_at")} <Path path={report.backup} /></p>
   {#snippet footer()}
     <button bind:this={closeButton} class="primary" onclick={onclose} data-testid="report-close"
       >{t("close")}</button
@@ -83,6 +84,8 @@
   }
   p {
     margin: 0;
-    word-break: break-all;
+  }
+  details code {
+    overflow-wrap: anywhere;
   }
 </style>
