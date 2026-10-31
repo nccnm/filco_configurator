@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KnownDevices",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "devices": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/KnownDevice"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "devices"
+  ],
+  "$defs": {
+    "HexU16": {
+      "description": "16-bit number in hex, e.g. \"0x2EFD\"",
+      "type": "string",
+      "pattern": "^0x[0-9A-Fa-f]{1,4}$"
+    },
+    "KnownDevice": {
+      "description": "A keyboard the editor can name even without a layout (from FILCO Assist's VID/PID table).",
+      "type": "object",
+      "properties": {
+        "internal": {
+          "description": "FILCO Assist's internal code, e.g. \"F72\".",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "product_id": {
+          "$ref": "#/$defs/HexU16"
+        },
+        "vendor_id": {
+          "$ref": "#/$defs/HexU16"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "vendor_id",
+        "product_id",
+        "name",
+        "internal"
+      ]
+    }
+  }
+}

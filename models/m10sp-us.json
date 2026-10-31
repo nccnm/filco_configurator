@@ -1,0 +1,706 @@
+{
+  "$schema": "./schema/model.schema.json",
+  "schema_version": 1,
+  "id": "filco-m10sp-us",
+  "name": "Majestouch Xacro M10SP US",
+  "vendor": "FILCO (Diatec)",
+  "support": "experimental",
+  "match": {
+    "vendor_id": "0x2EFD",
+    "product_ids": [
+      "0x1972"
+    ],
+    "hid_caps": {
+      "usage_page": 1,
+      "input_len": 9,
+      "output_len": 2,
+      "feature_len": 65
+    }
+  },
+  "protocol": {
+    "id": "costar-v1",
+    "report_len": 65,
+    "page_len": 512,
+    "chunk_len": 64,
+    "slot_addressing": "costar-interleaved-8",
+    "delay_ms": {
+      "read": 100,
+      "write": 100
+    }
+  },
+  "layers": [
+    {
+      "label": "1",
+      "led": "#ffffff",
+      "led_name": [
+        "trắng",
+        "white"
+      ]
+    },
+    {
+      "label": "2",
+      "led": "#2f63b0",
+      "led_name": [
+        "xanh dương",
+        "blue"
+      ]
+    },
+    {
+      "label": "3",
+      "led": "#3bb26b",
+      "led_name": [
+        "xanh lá",
+        "green"
+      ]
+    },
+    {
+      "label": "4",
+      "led": "#8f63d6",
+      "led_name": [
+        "tím",
+        "purple"
+      ]
+    }
+  ],
+  "slot_types": {
+    "editable": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "view_only": [
+      5,
+      6,
+      7
+    ]
+  },
+  "layout": {
+    "keys": [
+      {
+        "id": "Esc",
+        "index": 0,
+        "x": 0.0,
+        "y": 0,
+        "legend": "Esc",
+        "default_usage": "0x29"
+      },
+      {
+        "id": "1",
+        "index": 8,
+        "x": 1.0,
+        "y": 0,
+        "legend": "1",
+        "default_usage": "0x1E"
+      },
+      {
+        "id": "2",
+        "index": 16,
+        "x": 2.0,
+        "y": 0,
+        "legend": "2",
+        "default_usage": "0x1F"
+      },
+      {
+        "id": "3",
+        "index": 24,
+        "x": 3.0,
+        "y": 0,
+        "legend": "3",
+        "default_usage": "0x20"
+      },
+      {
+        "id": "4",
+        "index": 32,
+        "x": 4.0,
+        "y": 0,
+        "legend": "4",
+        "default_usage": "0x21"
+      },
+      {
+        "id": "5",
+        "index": 40,
+        "x": 5.0,
+        "y": 0,
+        "legend": "5",
+        "default_usage": "0x22"
+      },
+      {
+        "id": "6",
+        "index": 48,
+        "x": 6.0,
+        "y": 0,
+        "legend": "6",
+        "default_usage": "0x23"
+      },
+      {
+        "id": "M1",
+        "index": 56,
+        "x": 7.0,
+        "y": 0,
+        "legend": "M1",
+        "tags": [
+          "m-key"
+        ]
+      },
+      {
+        "id": "M6",
+        "index": 64,
+        "x": 8.9,
+        "y": 0,
+        "legend": "M6",
+        "tags": [
+          "m-key"
+        ]
+      },
+      {
+        "id": "7",
+        "index": 1,
+        "x": 9.9,
+        "y": 0,
+        "legend": "7",
+        "default_usage": "0x24"
+      },
+      {
+        "id": "8",
+        "index": 9,
+        "x": 10.9,
+        "y": 0,
+        "legend": "8",
+        "default_usage": "0x25"
+      },
+      {
+        "id": "9",
+        "index": 17,
+        "x": 11.9,
+        "y": 0,
+        "legend": "9",
+        "default_usage": "0x26"
+      },
+      {
+        "id": "0",
+        "index": 25,
+        "x": 12.9,
+        "y": 0,
+        "legend": "0",
+        "default_usage": "0x27"
+      },
+      {
+        "id": "-",
+        "index": 33,
+        "x": 13.9,
+        "y": 0,
+        "legend": "-",
+        "default_usage": "0x2D"
+      },
+      {
+        "id": "=",
+        "index": 41,
+        "x": 14.9,
+        "y": 0,
+        "legend": "=",
+        "default_usage": "0x2E"
+      },
+      {
+        "id": "Bksp",
+        "index": 49,
+        "x": 15.9,
+        "y": 0,
+        "w": 2,
+        "legend": "Backspace",
+        "default_usage": "0x2A"
+      },
+      {
+        "id": "Tab",
+        "index": 2,
+        "x": 0.0,
+        "y": 1,
+        "w": 1.5,
+        "legend": "Tab",
+        "default_usage": "0x2B"
+      },
+      {
+        "id": "Q",
+        "index": 10,
+        "x": 1.5,
+        "y": 1,
+        "legend": "Q",
+        "default_usage": "0x14"
+      },
+      {
+        "id": "W",
+        "index": 18,
+        "x": 2.5,
+        "y": 1,
+        "legend": "W",
+        "default_usage": "0x1A"
+      },
+      {
+        "id": "E",
+        "index": 26,
+        "x": 3.5,
+        "y": 1,
+        "legend": "E",
+        "default_usage": "0x08"
+      },
+      {
+        "id": "R",
+        "index": 34,
+        "x": 4.5,
+        "y": 1,
+        "legend": "R",
+        "default_usage": "0x15"
+      },
+      {
+        "id": "T",
+        "index": 42,
+        "x": 5.5,
+        "y": 1,
+        "legend": "T",
+        "default_usage": "0x17"
+      },
+      {
+        "id": "M2",
+        "index": 57,
+        "x": 6.5,
+        "y": 1,
+        "legend": "M2",
+        "tags": [
+          "m-key"
+        ]
+      },
+      {
+        "id": "M7",
+        "index": 65,
+        "x": 8.4,
+        "y": 1,
+        "legend": "M7",
+        "tags": [
+          "m-key"
+        ]
+      },
+      {
+        "id": "Y",
+        "index": 50,
+        "x": 9.4,
+        "y": 1,
+        "legend": "Y",
+        "default_usage": "0x1C"
+      },
+      {
+        "id": "U",
+        "index": 3,
+        "x": 10.4,
+        "y": 1,
+        "legend": "U",
+        "default_usage": "0x18"
+      },
+      {
+        "id": "I",
+        "index": 11,
+        "x": 11.4,
+        "y": 1,
+        "legend": "I",
+        "default_usage": "0x0C"
+      },
+      {
+        "id": "O",
+        "index": 19,
+        "x": 12.4,
+        "y": 1,
+        "legend": "O",
+        "default_usage": "0x12"
+      },
+      {
+        "id": "P",
+        "index": 27,
+        "x": 13.4,
+        "y": 1,
+        "legend": "P",
+        "default_usage": "0x13"
+      },
+      {
+        "id": "[",
+        "index": 35,
+        "x": 14.4,
+        "y": 1,
+        "legend": "[",
+        "default_usage": "0x2F"
+      },
+      {
+        "id": "]",
+        "index": 43,
+        "x": 15.4,
+        "y": 1,
+        "legend": "]",
+        "default_usage": "0x30"
+      },
+      {
+        "id": "\\",
+        "index": 51,
+        "x": 16.4,
+        "y": 1,
+        "w": 1.5,
+        "legend": "\\",
+        "default_usage": "0x31"
+      },
+      {
+        "id": "Caps",
+        "index": 4,
+        "x": 0.0,
+        "y": 2,
+        "w": 1.75,
+        "legend": "Caps Lock",
+        "default_usage": "0x39"
+      },
+      {
+        "id": "A",
+        "index": 12,
+        "x": 1.75,
+        "y": 2,
+        "legend": "A",
+        "default_usage": "0x04"
+      },
+      {
+        "id": "S",
+        "index": 20,
+        "x": 2.75,
+        "y": 2,
+        "legend": "S",
+        "default_usage": "0x16"
+      },
+      {
+        "id": "D",
+        "index": 28,
+        "x": 3.75,
+        "y": 2,
+        "legend": "D",
+        "default_usage": "0x07"
+      },
+      {
+        "id": "F",
+        "index": 36,
+        "x": 4.75,
+        "y": 2,
+        "legend": "F",
+        "default_usage": "0x09"
+      },
+      {
+        "id": "G",
+        "index": 44,
+        "x": 5.75,
+        "y": 2,
+        "legend": "G",
+        "default_usage": "0x0A"
+      },
+      {
+        "id": "M3",
+        "index": 58,
+        "x": 6.75,
+        "y": 2,
+        "legend": "M3",
+        "tags": [
+          "m-key"
+        ]
+      },
+      {
+        "id": "M8",
+        "index": 66,
+        "x": 8.65,
+        "y": 2,
+        "legend": "M8",
+        "tags": [
+          "m-key"
+        ]
+      },
+      {
+        "id": "H",
+        "index": 52,
+        "x": 9.65,
+        "y": 2,
+        "legend": "H",
+        "default_usage": "0x0B"
+      },
+      {
+        "id": "J",
+        "index": 5,
+        "x": 10.65,
+        "y": 2,
+        "legend": "J",
+        "default_usage": "0x0D"
+      },
+      {
+        "id": "K",
+        "index": 13,
+        "x": 11.65,
+        "y": 2,
+        "legend": "K",
+        "default_usage": "0x0E"
+      },
+      {
+        "id": "L",
+        "index": 21,
+        "x": 12.65,
+        "y": 2,
+        "legend": "L",
+        "default_usage": "0x0F"
+      },
+      {
+        "id": ";",
+        "index": 29,
+        "x": 13.65,
+        "y": 2,
+        "legend": ";",
+        "default_usage": "0x33"
+      },
+      {
+        "id": "'",
+        "index": 37,
+        "x": 14.65,
+        "y": 2,
+        "legend": "'",
+        "default_usage": "0x34"
+      },
+      {
+        "id": "Enter",
+        "index": 45,
+        "x": 15.65,
+        "y": 2,
+        "w": 2.25,
+        "legend": "Enter",
+        "default_usage": "0x28"
+      },
+      {
+        "id": "LShift",
+        "index": 6,
+        "x": 0.0,
+        "y": 3,
+        "w": 2.25,
+        "legend": "Shift",
+        "default_usage": "0xE1"
+      },
+      {
+        "id": "Z",
+        "index": 14,
+        "x": 2.25,
+        "y": 3,
+        "legend": "Z",
+        "default_usage": "0x1D"
+      },
+      {
+        "id": "X",
+        "index": 22,
+        "x": 3.25,
+        "y": 3,
+        "legend": "X",
+        "default_usage": "0x1B"
+      },
+      {
+        "id": "C",
+        "index": 30,
+        "x": 4.25,
+        "y": 3,
+        "legend": "C",
+        "default_usage": "0x06"
+      },
+      {
+        "id": "V",
+        "index": 38,
+        "x": 5.25,
+        "y": 3,
+        "legend": "V",
+        "default_usage": "0x19"
+      },
+      {
+        "id": "B",
+        "index": 46,
+        "x": 6.25,
+        "y": 3,
+        "legend": "B",
+        "default_usage": "0x05"
+      },
+      {
+        "id": "M4",
+        "index": 60,
+        "x": 7.25,
+        "y": 3,
+        "legend": "M4",
+        "tags": [
+          "m-key"
+        ]
+      },
+      {
+        "id": "M9",
+        "index": 68,
+        "x": 9.15,
+        "y": 3,
+        "legend": "M9",
+        "tags": [
+          "m-key"
+        ]
+      },
+      {
+        "id": "N",
+        "index": 54,
+        "x": 10.15,
+        "y": 3,
+        "legend": "N",
+        "default_usage": "0x11"
+      },
+      {
+        "id": "M",
+        "index": 7,
+        "x": 11.15,
+        "y": 3,
+        "legend": "M",
+        "default_usage": "0x10"
+      },
+      {
+        "id": ",",
+        "index": 15,
+        "x": 12.15,
+        "y": 3,
+        "legend": ",",
+        "default_usage": "0x36"
+      },
+      {
+        "id": ".",
+        "index": 23,
+        "x": 13.15,
+        "y": 3,
+        "legend": ".",
+        "default_usage": "0x37"
+      },
+      {
+        "id": "/",
+        "index": 31,
+        "x": 14.15,
+        "y": 3,
+        "legend": "/",
+        "default_usage": "0x38"
+      },
+      {
+        "id": "RShift",
+        "index": 39,
+        "x": 15.15,
+        "y": 3,
+        "w": 2.75,
+        "legend": "Shift",
+        "default_usage": "0xE5"
+      },
+      {
+        "id": "LCtrl",
+        "index": 71,
+        "x": 0.0,
+        "y": 4,
+        "w": 1.25,
+        "legend": "Ctrl",
+        "default_usage": "0xE0"
+      },
+      {
+        "id": "LWin",
+        "index": 82,
+        "x": 1.25,
+        "y": 4,
+        "w": 1.25,
+        "legend": "Win",
+        "default_usage": "0xE3"
+      },
+      {
+        "id": "LAlt",
+        "index": 83,
+        "x": 2.5,
+        "y": 4,
+        "w": 1.25,
+        "legend": "Alt",
+        "default_usage": "0xE2",
+        "note": "DIP ③ có thể biến phím này thành Fn2; ô layer vẫn thắng khi không giữ Fn (đã kiểm trên máy thật)."
+      },
+      {
+        "id": "SpaceL",
+        "index": 77,
+        "x": 3.75,
+        "y": 4,
+        "w": 3.125,
+        "legend": "Space",
+        "default_usage": "0x2C"
+      },
+      {
+        "id": "M5",
+        "index": 62,
+        "x": 6.875,
+        "y": 4,
+        "legend": "M5",
+        "tags": [
+          "m-key"
+        ]
+      },
+      {
+        "id": "M10",
+        "index": 70,
+        "x": 8.775,
+        "y": 4,
+        "legend": "M10",
+        "tags": [
+          "m-key"
+        ]
+      },
+      {
+        "id": "SpaceR",
+        "index": 76,
+        "x": 9.775,
+        "y": 4,
+        "w": 3.125,
+        "legend": "Space",
+        "default_usage": "0x2C"
+      },
+      {
+        "id": "RAlt",
+        "index": 78,
+        "x": 12.9,
+        "y": 4,
+        "w": 1.25,
+        "legend": "Alt",
+        "default_usage": "0xE6",
+        "tags": [
+          "unverified"
+        ],
+        "note": "Chỉ số 78 suy từ keymap mặc định (keymap còn có Alt phải ở 87, có lẽ của bản JP); chưa kiểm trên bàn phím thật."
+      },
+      {
+        "id": "RWin",
+        "index": 79,
+        "x": 14.15,
+        "y": 4,
+        "w": 1.25,
+        "legend": "Win",
+        "default_usage": "0xE7"
+      },
+      {
+        "id": "Fn",
+        "index": 73,
+        "x": 15.4,
+        "y": 4,
+        "w": 1.25,
+        "legend": "Fn",
+        "default_usage": "0xA4",
+        "note": "Ô của phím Fn bị bỏ qua khi đang giữ Fn. Bộ ghi macro phần cứng nhận Fn theo vị trí này."
+      },
+      {
+        "id": "RCtrl",
+        "index": 69,
+        "x": 16.65,
+        "y": 4,
+        "w": 1.25,
+        "legend": "Ctrl",
+        "default_usage": "0xE4"
+      }
+    ]
+  },
+  "notes": [
+    "Ô trống làm theo keymap mặc định của firmware; công tắc DIP có thể đổi keymap đó, nên chữ in trên phím không phải lúc nào cũng đúng.",
+    "Khi đang giữ Fn, firmware bỏ qua ô layer: lớp Fn cố định trong firmware.",
+    "Firmware đã vá có thể giữ riêng một số phím (ví dụ tap-hold); ô của các phím đó có thể không có tác dụng."
+  ]
+}

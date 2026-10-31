@@ -1,0 +1,15 @@
+{
+  "created": "2026-10-31_Layer4Apps + layer 4: P = Win+Shift+S (Windows screen snip)",
+  "device": {
+    "vid": "0x2efd",
+    "pid": "0x1972",
+    "rev": "0x0072",
+    "model": "Majestouch Xacro M10SP US (F72)"
+  },
+  "layers": {
+    "0": "ae53712223777d249b0c34b1bb992b2cef6b7b9444f588f2541cf86816ba9c8f",
+    "1": "ae53712223777d249b0c34b1bb992b2cef6b7b9444f588f2541cf86816ba9c8f",
+    "2": "24454e8cc31dca6c48695308fb7fb541cecc66cc3ba3ee4b3ffedda5cda2da21",
+    "3": "558c7a680ca9113f4ade9771d394fc70cbe472067020557e81a3feb231a8890d"
+  }
+}

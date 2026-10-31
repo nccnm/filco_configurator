@@ -1,0 +1,15 @@
+{
+  "created": "20261031-073738",
+  "device": {
+    "vid": "0x2efd",
+    "pid": "0x1972",
+    "rev": "0x0072",
+    "model": "Majestouch Xacro M10SP US (F72)"
+  },
+  "layers": {
+    "0": "074a20a2acbd9077feafaa7a8ae3442b92b5814ce363a06244b28c54096c7094",
+    "1": "b331f0bab1e4f5eb476b2b25e0ed7ff94cf1b94e6f3fc35b98256f85093029d4",
+    "2": "d5f85b5a4ba37447f5fff1a5de158434b70613ade47153adf94c55ae8b36d733",
+    "3": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560"
+  }
+}

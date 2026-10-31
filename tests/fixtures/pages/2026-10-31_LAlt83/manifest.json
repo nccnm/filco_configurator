@@ -1,0 +1,15 @@
+{
+  "created": "backup 20261031-105458 + slot 83 (left Alt position, DIP Fn2) = LAlt 02 00 e2 00 on all layers",
+  "device": {
+    "vid": "0x2efd",
+    "pid": "0x1972",
+    "rev": "0x0072",
+    "model": "Majestouch Xacro M10SP US (F72)"
+  },
+  "layers": {
+    "0": "cfd2e24651e2094fecb699787b6dc00a1d33511d5a119716e67b6f6e770a6da1",
+    "1": "ae53712223777d249b0c34b1bb992b2cef6b7b9444f588f2541cf86816ba9c8f",
+    "2": "0512b7e973dc9788716056a2cb08204405c9894684ecfe70d9f060771f9d0c0c",
+    "3": "a9fc1676832112c57c970412c42df1911790465f5bd40eb5bd8768a3bb4f28bc"
+  }
+}

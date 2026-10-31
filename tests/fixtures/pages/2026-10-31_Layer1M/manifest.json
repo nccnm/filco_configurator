@@ -1,0 +1,15 @@
+{
+  "created": "2026-10-31_SpaceNav + layer 1 M1-M10 = layer 2 (F5 Home Up Left Down F12 End Delete Right Fn)",
+  "device": {
+    "vid": "0x2efd",
+    "pid": "0x1972",
+    "rev": "0x0072",
+    "model": "Majestouch Xacro M10SP US (F72)"
+  },
+  "layers": {
+    "0": "ae53712223777d249b0c34b1bb992b2cef6b7b9444f588f2541cf86816ba9c8f",
+    "1": "ae53712223777d249b0c34b1bb992b2cef6b7b9444f588f2541cf86816ba9c8f",
+    "2": "24454e8cc31dca6c48695308fb7fb541cecc66cc3ba3ee4b3ffedda5cda2da21",
+    "3": "a9fc1676832112c57c970412c42df1911790465f5bd40eb5bd8768a3bb4f28bc"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "created": "2026-10-31_Layer1M + layer 4: D T I V N M B C O R S F E Z J = Ctrl+Shift+Alt+letter (AHK app hotkeys)",
+  "device": {
+    "vid": "0x2efd",
+    "pid": "0x1972",
+    "rev": "0x0072",
+    "model": "Majestouch Xacro M10SP US (F72)"
+  },
+  "layers": {
+    "0": "ae53712223777d249b0c34b1bb992b2cef6b7b9444f588f2541cf86816ba9c8f",
+    "1": "ae53712223777d249b0c34b1bb992b2cef6b7b9444f588f2541cf86816ba9c8f",
+    "2": "24454e8cc31dca6c48695308fb7fb541cecc66cc3ba3ee4b3ffedda5cda2da21",
+    "3": "f7cd4a3339a2caecf3614262b59ee6bd6dc761d588d3d5ab945b967fea07edaf"
+  }
+}

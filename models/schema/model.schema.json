@@ -1,0 +1,398 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ModelDescriptor",
+  "description": "Everything the editor needs to know about one keyboard model.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "id": {
+      "description": "Stable id, lower-case words joined by `-`.",
+      "type": "string"
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/LayerInfo"
+      }
+    },
+    "layout": {
+      "$ref": "#/$defs/Layout"
+    },
+    "match": {
+      "$ref": "#/$defs/DeviceMatch"
+    },
+    "name": {
+      "type": "string"
+    },
+    "notes": {
+      "description": "Hints shown in the UI, one sentence each.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "protocol": {
+      "$ref": "#/$defs/Protocol"
+    },
+    "schema_version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "slot_types": {
+      "$ref": "#/$defs/SlotTypes"
+    },
+    "support": {
+      "$ref": "#/$defs/Support"
+    },
+    "vendor": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "vendor",
+    "support",
+    "match",
+    "protocol",
+    "layers",
+    "slot_types",
+    "layout"
+  ],
+  "$defs": {
+    "Delays": {
+      "type": "object",
+      "properties": {
+        "read": {
+          "description": "Pause after every feature report while reading, in ms. FILCO Assist uses 100.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "write": {
+          "description": "Pause after every feature report while writing, in ms. FILCO Assist uses 100; at least 100.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "read",
+        "write"
+      ]
+    },
+    "DeviceMatch": {
+      "description": "How to recognise the configuration interface of this model.",
+      "type": "object",
+      "properties": {
+        "hid_caps": {
+          "$ref": "#/$defs/HidCaps"
+        },
+        "product_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/HexU16"
+          }
+        },
+        "vendor_id": {
+          "$ref": "#/$defs/HexU16"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "vendor_id",
+        "product_ids",
+        "hid_caps"
+      ]
+    },
+    "HexU16": {
+      "description": "16-bit number in hex, e.g. \"0x2EFD\"",
+      "type": "string",
+      "pattern": "^0x[0-9A-Fa-f]{1,4}$"
+    },
+    "HidCaps": {
+      "type": "object",
+      "properties": {
+        "feature_len": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "input_len": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "output_len": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "usage_page": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "usage_page",
+        "input_len",
+        "output_len",
+        "feature_len"
+      ]
+    },
+    "KeyDef": {
+      "description": "One physical key.",
+      "type": "object",
+      "properties": {
+        "default_usage": {
+          "description": "HID keyboard usage the key sends when its slot is empty (US layout, DIP switches off), if any.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HexU16"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "h": {
+          "type": "number",
+          "format": "float"
+        },
+        "id": {
+          "description": "Stable id, e.g. `Esc`, `SpaceL`, `M10`.",
+          "type": "string"
+        },
+        "index": {
+          "description": "Matrix index (slot number).",
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 255,
+          "minimum": 0
+        },
+        "legend": {
+          "description": "Legend printed on the keycap.",
+          "type": "string"
+        },
+        "note": {
+          "description": "Free text shown in the inspector.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/KeyTag"
+          }
+        },
+        "w": {
+          "type": "number",
+          "format": "float"
+        },
+        "x": {
+          "description": "Position and size in key units (1 unit = one alphanumeric key).",
+          "type": "number",
+          "format": "float"
+        },
+        "y": {
+          "type": "number",
+          "format": "float"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "index",
+        "x",
+        "y",
+        "legend"
+      ]
+    },
+    "KeyTag": {
+      "oneOf": [
+        {
+          "description": "A programmable M key (drawn with the soft fill).",
+          "type": "string",
+          "const": "m-key"
+        },
+        {
+          "description": "The key's matrix index is not verified on a real keyboard.",
+          "type": "string",
+          "const": "unverified"
+        }
+      ]
+    },
+    "LayerInfo": {
+      "type": "object",
+      "properties": {
+        "label": {
+          "description": "Name shown in the layer tabs, e.g. \"1\".",
+          "type": "string"
+        },
+        "led": {
+          "description": "Colour of the keyboard's layer LED, `#rrggbb`.",
+          "type": "string"
+        },
+        "led_name": {
+          "description": "Words for the LED colour, Vietnamese then English, e.g. `[\"trắng\", \"white\"]`.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "led",
+        "led_name"
+      ]
+    },
+    "Layout": {
+      "type": "object",
+      "properties": {
+        "keys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/KeyDef"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "keys"
+      ]
+    },
+    "Protocol": {
+      "type": "object",
+      "properties": {
+        "chunk_len": {
+          "description": "Data bytes per report while reading or writing a page.",
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "delay_ms": {
+          "$ref": "#/$defs/Delays"
+        },
+        "id": {
+          "$ref": "#/$defs/ProtocolId"
+        },
+        "page_len": {
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "report_len": {
+          "description": "Feature report length including the report id byte.",
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 65535,
+          "minimum": 0
+        },
+        "slot_addressing": {
+          "$ref": "#/$defs/SlotAddressing"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "report_len",
+        "page_len",
+        "chunk_len",
+        "slot_addressing",
+        "delay_ms"
+      ]
+    },
+    "ProtocolId": {
+      "oneOf": [
+        {
+          "description": "Feature-report protocol of FILCO Assist 2.0.97 (`CostarKBHID`): commands 0x10 / 0x11 / 0x02.",
+          "type": "string",
+          "const": "costar-v1"
+        }
+      ]
+    },
+    "SlotAddressing": {
+      "description": "Slot layout of a page. A model names one of these; nothing else in the code computes offsets.",
+      "oneOf": [
+        {
+          "description": "Costar / FILCO firmware (0x6842-0x6870 in V60): slot of index k at `0x40 * (k & 7) + 4 * (k >> 3)`,\n128 slots in a 512-byte page.",
+          "type": "string",
+          "const": "costar-interleaved-8"
+        }
+      ]
+    },
+    "SlotTypes": {
+      "type": "object",
+      "properties": {
+        "editable": {
+          "description": "Type codes the editor may write on this model.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0
+          }
+        },
+        "view_only": {
+          "description": "Type codes shown read-only.",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "editable",
+        "view_only"
+      ]
+    },
+    "Support": {
+      "description": "How far a model has been verified on a real keyboard.",
+      "oneOf": [
+        {
+          "description": "Read and write verified on a real keyboard.",
+          "type": "string",
+          "const": "verified"
+        },
+        {
+          "description": "Reading only: the editor refuses to write.",
+          "type": "string",
+          "const": "read_only"
+        },
+        {
+          "description": "Writing allowed with an extra warning; not verified on a real keyboard.",
+          "type": "string",
+          "const": "experimental"
+        }
+      ]
+    }
+  }
+}

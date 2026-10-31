@@ -1,0 +1,9 @@
+{
+  "$schema": "./schema/known-devices.schema.json",
+  "devices": [
+    { "vendor_id": "0x2EFD", "product_id": "0x1967", "name": "Majestouch Xacro M3A US", "internal": "F67" },
+    { "vendor_id": "0x2EFD", "product_id": "0x1970", "name": "Majestouch Xacro M3A JP", "internal": "F70" },
+    { "vendor_id": "0x2EFD", "product_id": "0x1972", "name": "Majestouch Xacro M10SP US", "internal": "F72" },
+    { "vendor_id": "0x2EFD", "product_id": "0x1976", "name": "Majestouch Xacro M10SP JP", "internal": "F76" }
+  ]
+}

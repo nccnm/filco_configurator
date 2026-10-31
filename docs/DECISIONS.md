@@ -51,3 +51,24 @@ riêng file này.
 
 Tên làm việc "Keyboard Layer Editor", định danh `io.github.keyboard-layer-editor`. Đổi tên: `productName` và
 `title` trong `src-tauri/tauri.conf.json`, hằng số `PRODUCT_NAME` trong UI.
+
+### D7. Mã hóa ô loại 3 và 4 (M1)
+
+Disassemble trình xử lý trong ảnh V60 (chỉ đọc file, `firmware/tools/armdis.py`): loại 3 (0x8f92) chép b1 vào byte
+thấp và b2 vào byte cao của báo cáo Consumer (0x2000009c/9d), nên mã 16 bit là little-endian ở b1-b2; loại 4
+(0x8fcc) chép đúng một byte b1 vào báo cáo System Control (0x2000009b). Vì vậy ô loại 4 là `04 mã 00 00`. Mã nào
+firmware chấp nhận (0x81 tắt máy, 0x82 ngủ, 0x83 thức theo HID, hay chỉ số 1..3) phụ thuộc report descriptor của
+interface System Control; sẽ đọc descriptor đó (chỉ đọc, không gửi report) ở M3. Tới khi đó UI chỉ đưa 3 mã HID chuẩn
+và ghi chú "chưa kiểm trên thiết bị".
+
+### D8. Model M10SP US ở mức `experimental`
+
+Đọc và ghi bằng `fnmap.py` đã chạy trên máy thật, nhưng ghi bằng ứng dụng này chưa. Model để `experimental` (cho ghi,
+kèm cảnh báo) cho tới khi người dùng làm xong checklist sáng mai; khi đó đổi `support` thành `verified` trong
+`tools/gen_m10sp_model.py` rồi sinh lại `models/m10sp-us.json`. Alt phải để chỉ số 78, gắn `unverified`.
+
+### D9. File model do script sinh
+
+`models/m10sp-us.json` được sinh từ `tools/gen_m10sp_model.py` (hàng phím, độ rộng, chỉ số ma trận viết tay ở một
+chỗ, tính tọa độ x tự động). File JSON vẫn là thứ ứng dụng đọc và là dạng để người khác thêm model; prettier bỏ qua file
+này để giữ đúng định dạng của script.

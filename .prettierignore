@@ -9,3 +9,5 @@ docs/
 models/schema/
 package-lock.json
 *.md
+# written by tools/gen_m10sp_model.py
+models/m10sp-us.json
