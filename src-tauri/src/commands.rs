@@ -188,6 +188,35 @@ pub mod e2e {
         sim
     }
 
+    /// Startup measurement: with `KLE_E2E_STARTUP_FILE` set, writes when `main` started and when the page reached
+    /// its marks (epoch ms), then quits. Without it, does nothing.
+    #[tauri::command]
+    #[allow(clippy::needless_pass_by_value)] // Tauri hands commands owned arguments.
+    pub fn e2e_startup<R: Runtime>(
+        app: AppHandle<R>,
+        state: State<'_, crate::State>,
+        origin: f64,
+        ready: f64,
+        interactive: f64,
+    ) -> Res<()> {
+        let Some(file) = std::env::var_os("KLE_E2E_STARTUP_FILE") else {
+            return Ok(());
+        };
+        let started = state
+            .started
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| e.to_string())?
+            .as_secs_f64()
+            * 1000.0;
+        let json = format!(
+            "{{\"main_epoch_ms\":{started:.1},\"page_origin_epoch_ms\":{origin:.1},\"ready_ms\":{ready:.1},\"interactive_ms\":{interactive:.1}}}
+"
+        );
+        std::fs::write(file, json).map_err(|e| e.to_string())?;
+        app.exit(0);
+        Ok(())
+    }
+
     /// `op`: `unplug`, `replug`, `reset`, `assist_on`, `assist_off`, `fault:<json>`, `fault_next:<json>`.
     #[tauri::command]
     pub async fn e2e_sim<R: Runtime>(
@@ -289,6 +318,7 @@ pub fn handler<R: Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + Send + 
         export_file,
         import_file,
         load_backup_folder,
-        e2e::e2e_sim
+        e2e::e2e_sim,
+        e2e::e2e_startup
     ]
 }

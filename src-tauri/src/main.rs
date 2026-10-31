@@ -18,6 +18,9 @@ pub struct State {
     pub app: Arc<Mutex<App>>,
     #[cfg(feature = "e2e-sim")]
     pub sim: filco_service::backend::SimBackend,
+    /// When `main` started, for the startup measurement of the E2E build.
+    #[cfg(feature = "e2e-sim")]
+    pub started: std::time::SystemTime,
 }
 
 #[cfg(feature = "e2e-sim")]
@@ -50,6 +53,8 @@ fn backend() -> (Arc<dyn Backend>, Paths, bool) {
 
 fn main() {
     #[cfg(feature = "e2e-sim")]
+    let started = std::time::SystemTime::now();
+    #[cfg(feature = "e2e-sim")]
     let (backend, sim, paths, simulated) = backend();
     #[cfg(not(feature = "e2e-sim"))]
     let (backend, paths, simulated) = backend();
@@ -61,6 +66,8 @@ fn main() {
             app: Arc::clone(&app),
             #[cfg(feature = "e2e-sim")]
             sim,
+            #[cfg(feature = "e2e-sim")]
+            started,
         })
         .setup(|tauri_app| {
             // Plug and unplug: tell the UI, which asks for a refresh.

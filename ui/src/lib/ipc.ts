@@ -32,6 +32,8 @@ export const ipc = {
   loadBackupFolder: () => invoke<Snapshot>("load_backup_folder"),
   /** Only in the e2e-sim build. */
   e2eSim: (op: string) => invoke<Snapshot>("e2e_sim", { op }),
+  e2eStartup: (origin: number, ready: number, interactive: number) =>
+    invoke<null>("e2e_startup", { origin, ready, interactive }),
 };
 
 export function onProgress(f: (p: ProgressView) => void): Promise<UnlistenFn> {

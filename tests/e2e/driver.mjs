@@ -65,7 +65,12 @@ export async function openApp(env = {}) {
       hostname: "127.0.0.1",
       port: myPort,
       logLevel: "error",
-      capabilities: { browserName: "wry", "tauri:options": { application: APP } },
+      // Classic WebDriver: BiDi would add a mapper page (one more WebView2 renderer) and skew memory figures.
+      capabilities: {
+        browserName: "wry",
+        "tauri:options": { application: APP },
+        "wdio:enforceWebDriverClassic": true,
+      },
     });
   } catch (e) {
     driver.kill();

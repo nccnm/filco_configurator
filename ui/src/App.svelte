@@ -25,6 +25,8 @@
   const nChanges = $derived(snap?.changes.length ?? 0);
   const linkedHere = $derived(snap?.assist.linked.filter((l) => l.layer === store.layer) ?? []);
   let backups = $state<BackupView[]>([]);
+  /** False until the first search for keyboards has finished: `data-state` is "starting" until then. */
+  let started = $state(false);
   let confirmRead = $state(false);
 
   // What the keyboard holds for the selected slot (for "edited, keyboard has ...").
@@ -117,12 +119,17 @@
     void (async () => {
       await store.run("edit", () => ipc.setLang(lang));
       performance.mark("ui-ready");
-      store.catalog = await ipc.catalog();
-      await store.run("refresh", ipc.refresh);
-      performance.mark("ui-interactive");
       if (store.snap?.simulated) {
         // Simulator controls for the E2E tests (the command exists only in the e2e-sim build).
         Object.assign(window, { __kleSim: (op: string) => store.run("refresh", () => ipc.e2eSim(op)) });
+      }
+      store.catalog = await ipc.catalog();
+      await store.run("refresh", ipc.refresh);
+      started = true;
+      performance.mark("ui-interactive");
+      if (store.snap?.simulated) {
+        const mark = (n: string) => performance.getEntriesByName(n)[0]?.startTime ?? -1;
+        void ipc.e2eStartup(performance.timeOrigin, mark("ui-ready"), mark("ui-interactive")).catch(() => {});
       }
     })();
     const poll = setInterval(() => void store.poll(), 2000);
@@ -142,7 +149,7 @@
 <div
   class="app l{store.layer}"
   class:idle={!ready}
-  data-state={phase}
+  data-state={started ? phase : "starting"}
   data-busy={store.busy ?? ""}
   data-testid="app"
 >
@@ -368,7 +375,9 @@
       </div>
     {:else}
       <div class="screen" data-testid={`screen-${phase}`}>
-        {#if (store.busy === "read" || store.busy === "refresh") && store.progress}
+        {#if !started && !store.progress}
+          <!-- Looking for keyboards: nothing to say yet, and no "no keyboard" flash before the first search ends. -->
+        {:else if (store.busy === "read" || store.busy === "refresh") && store.progress}
           <h2>{t("reading", { n: (store.progress?.layer ?? 0) + 1, total: model?.layers.length ?? 4 })}</h2>
           <div class="screen-progress"><Progress progress={store.progress} {t} /></div>
         {:else if phase === "no_device"}

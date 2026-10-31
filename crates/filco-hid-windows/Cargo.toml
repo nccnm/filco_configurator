@@ -35,3 +35,10 @@ features = [
   "Win32_System_Diagnostics_ToolHelp",
   "Win32_Security",
 ]
+
+[dev-dependencies]
+criterion = { version = "0.8.2", default-features = false }
+
+[[bench]]
+name = "enumerate"
+harness = false
