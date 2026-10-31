@@ -139,6 +139,7 @@ async function run(theme) {
     await click(browser, "more-menu");
     await click(browser, "lang-vi");
     await waitIdle(browser);
+    await browser.keys("Escape");
 
     // Unplugged while open.
     await sim(browser, "unplug");

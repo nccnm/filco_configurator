@@ -156,10 +156,10 @@
   <header class="top">
     <div class="ident">
       <p class="product small">
-        {#if snap?.device || model}<b>{PRODUCT_NAME}</b> ·&nbsp;{/if}{t("subtitle")}
+        {#if snap?.device}<b>{PRODUCT_NAME}</b> ·&nbsp;{/if}{t("subtitle")}
       </p>
       <div class="device">
-        <h1 data-testid="device-name">{snap?.device?.name ?? model?.name ?? PRODUCT_NAME}</h1>
+        <h1 data-testid="device-name">{snap?.device?.name ?? PRODUCT_NAME}</h1>
         {#if snap?.device}
           <span class="status small"
             ><span class="conn on"></span>{t("connected")} · {t("rev")} 0x{snap.device.version
