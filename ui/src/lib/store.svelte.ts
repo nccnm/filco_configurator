@@ -47,7 +47,7 @@ class Store {
       this.model = await ipc.model(s.model_id);
       this.selected = null;
     } else if (!s.model_id) {
-      this.model = null;
+      // Keep the last model: dialogs about the keyboard that just went away still name its layers.
       this.selected = null;
     }
     if (this.layer >= s.layers.length && s.layers.length > 0) this.layer = 0;

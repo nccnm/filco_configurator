@@ -105,7 +105,10 @@ async function run(theme) {
     await click(browser, "save");
     await (await browser.$('[data-testid="diff-dialog"]')).waitForDisplayed({ timeout: 10000 });
     await waitIdle(browser);
-    await sim(browser, `fault:${JSON.stringify({ cmd: 17, nth: 2, stage: "finish", kind: "wrong_ack" })}`);
+    await sim(
+      browser,
+      `fault_next:${JSON.stringify({ cmd: 17, nth: 1, stage: "finish", kind: "wrong_ack" })}`,
+    );
     await click(browser, "diff-write");
     await (await browser.$('[data-testid="report-dialog"]')).waitForDisplayed({ timeout: 20000 });
     await shot(browser, theme, "11-write-failed");

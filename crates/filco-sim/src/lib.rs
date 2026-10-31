@@ -148,6 +148,11 @@ impl SimKeyboard {
         &mut self.flash
     }
 
+    /// Sessions of `cmd` (0x10 read, 0x11 write) started so far, i.e. the `nth` the next one will have.
+    pub fn sessions(&self, cmd: u8) -> usize {
+        Self::session_index(cmd).map_or(0, |i| self.sessions[i])
+    }
+
     /// Number of pages stored in flash so far.
     pub fn flash_writes(&self) -> usize {
         self.flash_writes

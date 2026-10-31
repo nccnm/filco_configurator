@@ -169,6 +169,16 @@ impl App {
     /// Looks for keyboards; connects to the first supported one if none is connected and reads it when FILCO
     /// Assist is closed. Drops the connection when its keyboard is gone.
     pub fn refresh(&mut self, progress: &mut dyn FnMut(ProgressView)) {
+        self.rescan();
+        if self.conn.is_none()
+            && let Some(f) = self.found.iter().find(|f| f.model.is_some()).cloned()
+        {
+            self.connect_found(&f, progress);
+        }
+    }
+
+    /// Lists keyboards again and drops the connection if its keyboard is gone. Never connects.
+    fn rescan(&mut self) {
         let interfaces = match self.backend.interfaces() {
             Ok(i) => i,
             Err(e) => {
@@ -183,11 +193,13 @@ impl App {
             self.conn = None;
             self.plan = None;
         }
-        if self.conn.is_none()
-            && let Some(f) = self.found.iter().find(|f| f.model.is_some()).cloned()
-        {
-            self.connect_found(&f, progress);
-        }
+    }
+
+    /// The keyboard stopped answering: forget the connection and look again.
+    fn lost(&mut self) {
+        self.conn = None;
+        self.plan = None;
+        self.rescan();
     }
 
     fn connect_found(&mut self, f: &FoundKeyboard, progress: &mut dyn FnMut(ProgressView)) {
@@ -246,7 +258,7 @@ impl App {
                 self.read_failed = true;
                 self.error = Some(read_error(&e));
                 if matches!(e, ProtocolError::Transport(TransportError::Disconnected)) {
-                    self.conn = None;
+                    self.lost();
                 }
             }
         }
@@ -498,7 +510,7 @@ impl App {
                     ed.rebase(pages);
                 }
             }
-            Err(_) => self.conn = None,
+            Err(_) => self.lost(),
         }
     }
 
@@ -629,10 +641,12 @@ impl App {
             changes = self.change_views(m, &ed.changes(m));
         }
         let phase = if self.conn.is_none() {
-            if self.found.is_empty() {
-                Phase::NoDevice
-            } else {
+            // A supported keyboard that is listed but not connected (it stopped answering, or opening it failed)
+            // is not "unsupported": the error banner says what happened.
+            if !self.found.is_empty() && self.found.iter().all(|f| f.model.is_none()) {
                 Phase::Unsupported
+            } else {
+                Phase::NoDevice
             }
         } else if editor.is_some() {
             Phase::Ready
@@ -822,7 +836,13 @@ mod tests {
             });
         });
         app.execute_write(&mut |_| {});
-        assert!(app.snapshot().report.unwrap().journal_kept);
+        let s = app.snapshot();
+        assert!(s.report.unwrap().journal_kept);
+        assert_eq!(
+            s.phase,
+            Phase::NoDevice,
+            "a supported keyboard that went away is not 'unsupported'"
+        );
         sim.with(SimKeyboard::reconnect);
 
         // A new app session (restart): the journal is found and explained.

@@ -23,6 +23,12 @@ function edgeDriver() {
   return path.join(tools, last, "msedgedriver.exe");
 }
 
+function tauriDriver() {
+  if (process.env.TAURI_DRIVER) return process.env.TAURI_DRIVER;
+  const cargo = path.join(os.homedir(), ".cargo", "bin", "tauri-driver.exe");
+  return fs.existsSync(cargo) ? cargo : "tauri-driver";
+}
+
 let port = 4444;
 
 /**
@@ -34,13 +40,17 @@ export async function openApp(env = {}) {
   const myPort = port++;
   const nativePort = myPort + 100;
   const driver = spawn(
-    "tauri-driver",
+    tauriDriver(),
     ["--port", String(myPort), "--native-port", String(nativePort), "--native-driver", edgeDriver()],
     { env: { ...process.env, KLE_E2E_DIR: dataDir, ...env }, stdio: ["ignore", "ignore", "pipe"] },
   );
   let stderr = "";
+  let exited = null;
   driver.stderr.on("data", (d) => (stderr += d));
+  driver.on("exit", (code) => (exited = code));
+  driver.on("error", (e) => (exited = String(e)));
   for (let i = 0; i < 50; i++) {
+    if (exited !== null) throw new Error(`tauri-driver exited (${exited}): ${stderr}`);
     try {
       await fetch(`http://127.0.0.1:${myPort}/status`);
       break;

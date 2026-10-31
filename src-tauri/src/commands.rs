@@ -188,7 +188,7 @@ pub mod e2e {
         sim
     }
 
-    /// `op`: `unplug`, `replug`, `reset`, `assist_on`, `assist_off`, `fault:<json>`.
+    /// `op`: `unplug`, `replug`, `reset`, `assist_on`, `assist_off`, `fault:<json>`, `fault_next:<json>`.
     #[tauri::command]
     pub async fn e2e_sim<R: Runtime>(
         app: AppHandle<R>,
@@ -206,9 +206,20 @@ pub mod e2e {
             "assist_on" => sim.set_processes(&["FilcoAssistUI.exe", "FilcoAssistTray.exe"]),
             "assist_off" => sim.set_processes(&[]),
             other => {
-                let json = other.strip_prefix("fault:").ok_or("unknown op")?;
-                let fault: Fault = serde_json::from_str(json).map_err(|e| e.to_string())?;
-                sim.with(|k| k.add_fault(fault));
+                // `fault:` counts sessions from the start, `fault_next:` from the next session of that command.
+                let (json, relative) = match (other.strip_prefix("fault:"), other.strip_prefix("fault_next:"))
+                {
+                    (Some(j), _) => (j, false),
+                    (_, Some(j)) => (j, true),
+                    _ => return Err("unknown op".into()),
+                };
+                let mut fault: Fault = serde_json::from_str(json).map_err(|e| e.to_string())?;
+                sim.with(|k| {
+                    if relative {
+                        fault.nth += k.sessions(fault.cmd);
+                    }
+                    k.add_fault(fault);
+                });
             }
         }
         run(&app, &state, |a, p| {

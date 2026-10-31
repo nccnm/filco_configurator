@@ -315,7 +315,9 @@
             >
           {/each}
         </div>
-        <button onclick={() => void store.run("edit", ipc.restoreFromJournal)}>{t("journal_restore")}</button>
+        <button onclick={() => void store.run("edit", ipc.restoreFromJournal)} data-testid="journal-restore"
+          >{t("journal_restore")}</button
+        >
         <button class="ghost" onclick={() => void store.run("edit", ipc.dismissJournal)}
           >{t("journal_keep")}</button
         >
