@@ -1,0 +1,9 @@
+/target/
+node_modules/
+/ui/dist/
+/ui/.svelte-kit/
+/tests/e2e/out/
+/tests/e2e/.cache/
+*.log
+.DS_Store
+Thumbs.db
