@@ -229,7 +229,9 @@ pub fn consumer(code: u16) -> Option<&'static ConsumerUsage> {
     CONSUMER.iter().find(|u| u.code == code)
 }
 
-/// One generic-desktop system control usage.
+/// One system control action of a type-4 slot. The keyboard's System Control input report (interface MI_01,
+/// collection 2) is one byte of Variable buttons for usages 0x81..=0x83, and the firmware copies slot byte b1 into it
+/// unchanged, so `code` is a bit mask, not the HID usage id (read from the report descriptor on a real M10SP).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct SystemUsage {
     pub code: u8,
@@ -239,17 +241,17 @@ pub struct SystemUsage {
 
 pub static SYSTEM: &[SystemUsage] = &[
     SystemUsage {
-        code: 0x81,
+        code: 0x01,
         legend: "Power",
         name: "System Power Down",
     },
     SystemUsage {
-        code: 0x82,
+        code: 0x02,
         legend: "Sleep",
         name: "System Sleep",
     },
     SystemUsage {
-        code: 0x83,
+        code: 0x04,
         legend: "Wake",
         name: "System Wake Up",
     },
@@ -285,6 +287,6 @@ mod tests {
         assert_eq!(keyboard(FN_USAGE).unwrap().legend, "Fn");
         assert!(keyboard(0x00).is_none());
         assert_eq!(consumer(0x00e9).unwrap().legend, "Vol +");
-        assert_eq!(system(0x82).unwrap().legend, "Sleep");
+        assert_eq!(system(0x02).unwrap().legend, "Sleep");
     }
 }

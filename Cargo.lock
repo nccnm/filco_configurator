@@ -894,6 +894,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "filco-cli"
+version = "0.1.0"
+dependencies = [
+ "filco-core",
+ "filco-hid-windows",
+ "filco-protocol",
+ "filco-service",
+]
+
+[[package]]
 name = "filco-core"
 version = "0.1.0"
 dependencies = [
@@ -908,10 +918,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "filco-hid-windows"
+version = "0.1.0"
+dependencies = [
+ "filco-protocol",
+ "thiserror 2.0.21",
+ "windows",
+]
+
+[[package]]
 name = "filco-protocol"
 version = "0.1.0"
 dependencies = [
  "filco-core",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "filco-service"
+version = "0.1.0"
+dependencies = [
+ "filco-core",
+ "filco-protocol",
+ "filco-sim",
+ "serde",
+ "serde_json",
+ "tempfile",
  "thiserror 2.0.21",
 ]
 

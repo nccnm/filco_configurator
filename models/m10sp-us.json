@@ -24,7 +24,7 @@
     "chunk_len": 64,
     "slot_addressing": "costar-interleaved-8",
     "delay_ms": {
-      "read": 100,
+      "read": 15,
       "write": 100
     }
   },

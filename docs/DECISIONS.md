@@ -72,3 +72,28 @@ kèm cảnh báo) cho tới khi người dùng làm xong checklist sáng mai; kh
 `models/m10sp-us.json` được sinh từ `tools/gen_m10sp_model.py` (hàng phím, độ rộng, chỉ số ma trận viết tay ở một
 chỗ, tính tọa độ x tự động). File JSON vẫn là thứ ứng dụng đọc và là dạng để người khác thêm model; prettier bỏ qua file
 này để giữ đúng định dạng của script.
+
+### D10. Ô loại 4 là mặt nạ bit (M3, đo trên máy thật)
+
+`filco-cli caps` đọc report descriptor của collection System Control (MI_01, col02; chỉ đọc descriptor, không gửi
+report): một byte input gồm các nút Variable cho usage 0x81..=0x83 (logical 0..1). Firmware chép b1 của ô loại 4
+nguyên vẹn vào byte đó (D7), nên b1 là mặt nạ bit: 0x01 tắt máy, 0x02 ngủ, 0x04 thức, không phải mã usage 0x81-0x83.
+Bảng `usage::SYSTEM` dùng mặt nạ này. Ô loại 4 chưa được gõ thử trên máy thật: có trong checklist sáng mai (chỉ thử
+"ngủ" nếu người dùng muốn).
+
+### D11. Khoảng chờ đọc 15 ms cho M10SP US (M3, đo trên máy thật)
+
+Phiên đo 2026-11-01 bằng `filco-cli measure-delays` (chỉ 0x10 + 0x02, chặn ReadOnly, FILCO Assist đã đóng), 36 phiên
+đọc trang trong giới hạn 50:
+
+| Khoảng chờ | Lần 1 | Lần 2 | Kết quả |
+|---|---|---|---|
+| 100 ms (tham chiếu) | 4,828 s | | khớp SHA-256 `configs/2026-10-31_Layer4Snip` |
+| 50 ms | 2,427 s | 2,427 s | giống từng byte bản 100 ms |
+| 25 ms | 1,225 s | 1,228 s | giống |
+| 15 ms | 0,748 s | 0,747 s | giống |
+| 10 ms | 0,507 s | 0,507 s | giống |
+
+Không có lỗi checksum, NoAck hay khác byte ở mức nào. Theo plan (mục 4.5), mức nhỏ nhất qua hết là 10 ms nên dùng mức
+lớn hơn kế tiếp, 15 ms, làm khoảng chờ đọc của riêng model M10SP US (`protocol.delay_ms.read`). Khoảng chờ ghi giữ
+100 ms. Model khác mặc định 100 ms. Đọc 4 layer ~0,75 s, trong ngân sách 1,0 s.

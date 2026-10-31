@@ -1,0 +1,37 @@
+[package]
+name = "filco-hid-windows"
+description = "Windows HID access for FILCO keyboards: enumeration by HID caps, zero-access handles, feature reports, hot-plug and process checks"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints.rust]
+# This is the only crate allowed to call Win32; every unsafe block states why it is sound.
+unsafe_code = "allow"
+missing_debug_implementations = "warn"
+unused_qualifications = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+undocumented_unsafe_blocks = "warn"
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+must_use_candidate = "allow"
+doc_markdown = "allow"
+
+[dependencies]
+filco-protocol = { path = "../filco-protocol" }
+thiserror = "2.0.21"
+
+[target.'cfg(windows)'.dependencies.windows]
+version = "0.62.2"
+features = [
+  "Win32_Foundation",
+  "Win32_Devices_HumanInterfaceDevice",
+  "Win32_Devices_DeviceAndDriverInstallation",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_Security",
+]

@@ -1,0 +1,20 @@
+[package]
+name = "filco-cli"
+description = "Read-only command line tool for developers: list FILCO keyboards, read and compare layer pages, decode backups"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "filco-cli"
+path = "src/main.rs"
+
+[dependencies]
+filco-core = { path = "../filco-core" }
+filco-protocol = { path = "../filco-protocol" }
+filco-service = { path = "../filco-service" }
+filco-hid-windows = { path = "../filco-hid-windows" }

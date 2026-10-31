@@ -91,7 +91,7 @@ MODEL = {
         "page_len": 512,
         "chunk_len": 64,
         "slot_addressing": "costar-interleaved-8",
-        "delay_ms": {"read": 100, "write": 100},
+        "delay_ms": {"read": 15, "write": 100},
     },
     "layers": [
         {"label": "1", "led": "#ffffff", "led_name": ["trắng", "white"]},

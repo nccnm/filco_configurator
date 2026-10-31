@@ -255,7 +255,7 @@ mod tests {
         assert_eq!(label("01 04 05 00", Lang::En).short, "mouse →");
         assert_eq!(label("01 04 05 05", Lang::En).short, "mouse\n5,5");
         assert_eq!(label("03 e9 00 00", Lang::En).short, "Vol +");
-        assert_eq!(label("04 82 00 00", Lang::En).short, "Sleep");
+        assert_eq!(label("04 02 00 00", Lang::En).short, "Sleep");
         assert_eq!(label("06 02 00 00", Lang::Vi).long, "Macro số 2");
         assert_eq!(
             label("07 01 02 03", Lang::En).long,

@@ -82,6 +82,7 @@ pub struct Session<T, C> {
     transport: T,
     clock: C,
     delays: Delays,
+    read_retries: u32,
 }
 
 impl<T: Transport, C: Clock> Session<T, C> {
@@ -90,7 +91,18 @@ impl<T: Transport, C: Clock> Session<T, C> {
             transport,
             clock,
             delays,
+            read_retries: READ_RETRIES,
         }
+    }
+
+    /// Sets how often a failed page read is retried (default [`READ_RETRIES`]); 0 for measurements.
+    pub fn set_read_retries(&mut self, retries: u32) {
+        self.read_retries = retries;
+    }
+
+    /// Changes the pauses, e.g. after measuring the read delay a model tolerates.
+    pub fn set_delays(&mut self, delays: Delays) {
+        self.delays = delays;
     }
 
     pub fn transport(&self) -> &T {
@@ -196,7 +208,7 @@ impl<T: Transport, C: Clock> Session<T, C> {
         let mut attempt = 0;
         loop {
             match self.read_page_once(layer, Phase::Read, delay, progress) {
-                Err(e) if e.retryable_read() && attempt < READ_RETRIES => attempt += 1,
+                Err(e) if e.retryable_read() && attempt < self.read_retries => attempt += 1,
                 other => return other,
             }
         }
