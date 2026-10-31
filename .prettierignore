@@ -1,0 +1,11 @@
+target/
+node_modules/
+ui/dist/
+src-tauri/gen/
+ui/src/bindings/
+tests/fixtures/
+tests/e2e/out/
+docs/
+models/schema/
+package-lock.json
+*.md
