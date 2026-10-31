@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 80146e63b27da9d6c1f932a5a7439b9bbf91af9db32a0f41a00363e4ce0097e6 # shrinks to base = LayerSet { pages: [Page(111 non-empty slots, sha256 16f795e08394), Page(128 non-empty slots, sha256 e7236cd224d9), Page(128 non-empty slots, sha256 fb51ca77e6d8), Page(128 non-empty slots, sha256 08d21bc8e670)] }, ops = [Assign { layers: [1, 0], key: 10, slot: Slot(01 01 1a 00) }, Assign { layers: [2, 1], key: 60, slot: Slot(01 01 08 00) }, Assign { layers: [1, 2, 2], key: 64, slot: Slot(00 00 00 00) }, Undo, Assign { layers: [3, 3, 3], key: 0, slot: Slot(00 00 00 00) }, Copy { from: 3, to: 1 }, Copy { from: 0, to: 1 }, Undo, Redo, Redo, Assign { layers: [1, 1], key: 41, slot: Slot(03 6e 01 00) }, Undo, Assign { layers: [3, 3], key: 64, slot: Slot(01 01 0d 00) }, Assign { layers: [3, 1], key: 21, slot: Slot(04 04 00 00) }, Redo, Assign { layers: [2], key: 56, slot: Slot(03 e4 00 00) }, Redo, Assign { layers: [0, 1, 0], key: 3, slot: Slot(04 04 00 00) }, Copy { from: 2, to: 0 }, Undo]

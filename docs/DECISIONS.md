@@ -97,3 +97,57 @@ Phiên đo 2026-11-01 bằng `filco-cli measure-delays` (chỉ 0x10 + 0x02, ch�
 Không có lỗi checksum, NoAck hay khác byte ở mức nào. Theo plan (mục 4.5), mức nhỏ nhất qua hết là 10 ms nên dùng mức
 lớn hơn kế tiếp, 15 ms, làm khoảng chờ đọc của riêng model M10SP US (`protocol.delay_ms.read`). Khoảng chờ ghi giữ
 100 ms. Model khác mặc định 100 ms. Đọc 4 layer ~0,75 s, trong ngân sách 1,0 s.
+
+## 2026-11-01
+
+### D12. Kiểu IPC sinh từ một tầng DTO riêng (M5)
+
+`ts-rs` chỉ gắn vào các kiểu trong `src-tauri/src/view.rs` (ảnh chụp trạng thái, hành động, danh mục), không gắn vào
+kiểu lõi của `filco-core`: lõi không phụ thuộc thư viện sinh TypeScript, và giao diện nhận đúng thứ nó hiển thị (nhãn
+đã dịch, cờ "đã sửa"). Tất cả sinh vào một file `ui/src/bindings/ipc.ts`; test `bindings_are_current` báo lỗi khi file
+cũ hơn mã Rust (`UPDATE_BINDINGS=1` để sinh lại).
+
+### D13. WebView2 chạy không tăng tốc GPU và không có renderer dự phòng (M6)
+
+Đo sau 500 thao tác: tiến trình GPU của WebView2 chiếm 110 MB private, tổng cả cây 372 MB, vượt ngân sách 220 MB.
+`additionalBrowserArgs` thêm `--disable-gpu` và tắt `SpareRendererForSitePerProcess` (giữ các cờ mặc định của Tauri):
+tiến trình GPU còn 22 MB, tổng 207 MB. Giao diện là SVG nét mảnh và vài bảng; vẽ bằng CPU vẫn dưới 3 ms mỗi lần đổi
+layer. Nếu sau này cần hoạt ảnh nặng, xem lại.
+
+### D14. Đo khởi động không qua WebDriver; E2E dùng WebDriver Classic (M6)
+
+Qua `tauri-driver` + `msedgedriver`, thời điểm "spawn" gồm cả việc driver tạo phiên, làm số khởi động phình ra (496 ms).
+Bản `e2e-sim` có lệnh `e2e_startup`: khi biến `KLE_E2E_STARTUP_FILE` được đặt, giao diện báo thời điểm trang bắt đầu và
+các mốc của nó, Rust ghi thêm lúc `main` chạy, rồi thoát. `tests/e2e/perf.mjs` chạy thẳng file exe 10 lần và lấy trung
+vị. WebDriver BiDi mở thêm một trang "mapper" (thêm một renderer) nên E2E ép dùng WebDriver Classic; số bộ nhớ khi
+đó khớp với lúc chạy app trực tiếp (một renderer).
+
+### D15. Bàn phím giả nằm trong `filco-service` (M5)
+
+`SimBackend` (bàn phím giả sau khóa dùng chung, điều khiển rút / cắm, tiêm lỗi, giả FILCO Assist) là một `Backend` như
+HID thật, nên bản `e2e-sim` chạy đúng mã ứng dụng, IPC và giao diện của bản phát hành, chỉ khác nguồn thiết bị. Bản phát
+hành không bật tính năng `e2e-sim`: lệnh điều khiển bàn phím giả không tồn tại trong đó.
+
+### D16. Nhãn tổ hợp phím dài trên keycap (M5)
+
+Ảnh chụp cho thấy "Ctrl+Shift+Alt+E" thu xuống cỡ chữ 5 px, không đọc được. Keycap vẽ hai dòng: dòng nhỏ là modifier
+(viết tắt "C+S+A" khi tên đầy đủ dài quá 9 ký tự), dòng lớn là phím. Inspector và bảng khác biệt luôn ghi tên đầy đủ.
+
+### D17. "data-state=starting" cho tới khi tìm bàn phím xong lần đầu (M6)
+
+Trước lần tìm đầu tiên, giao diện từng báo sẵn trạng thái "chưa có bàn phím" và hiện màn hình đó trong khoảng 300 ms
+rồi mới chuyển sang bàn phím: vừa nháy sai nội dung, vừa làm test đo đọc 4 layer thỉnh thoảng bắt đầu quá sớm (2 trên 4
+lần thử). Nay vùng chính để trống và `data-state` là `starting` tới khi lần tìm đầu xong.
+
+### D18. Bàn phím mất kết nối không còn hiện là "chưa hỗ trợ" (M6, test E2E tìm ra)
+
+Khi bàn phím ngừng trả lời giữa lúc ghi, ứng dụng bỏ kết nối nhưng danh sách thiết bị còn cũ, nên hiện "Chưa hỗ trợ
+bàn phím này" và mất hộp thoại báo kết quả ghi. Nay ứng dụng quét lại thiết bị ngay khi mất kết nối, chỉ báo "chưa hỗ
+trợ" khi thật sự không có model nào khớp, và giữ mô tả model để hộp thoại kết quả vẫn ghi đúng tên layer.
+
+### D19. Giấy phép phụ thuộc: cho phép thêm MPL-2.0 (M8)
+
+`cargo deny check` (`deny.toml`): mọi crate là MIT, Apache-2.0, BSD-3-Clause, Zlib, Unicode-3.0, CC0-1.0, trừ vài
+crate MPL-2.0 mà Tauri kéo vào (`cssparser`, `selectors`...). MPL-2.0 là copyleft theo từng file: dùng nguyên bản từ
+crates.io thì chia sẻ ứng dụng dưới giấy phép nào cũng được. Không có advisory nào. Phía npm: chỉ cảnh báo mức thấp ở D4,
+chỉ dùng lúc build.

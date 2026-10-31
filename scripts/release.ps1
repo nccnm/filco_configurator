@@ -14,6 +14,8 @@ Set-Location (Split-Path $PSScriptRoot -Parent)
 $cargoBin = Join-Path $env:USERPROFILE '.cargo\bin'
 if ((Test-Path $cargoBin) -and -not ($env:Path -split ';' -contains $cargoBin)) { $env:Path = "$cargoBin;$env:Path" }
 
+cargo deny check
+if ($LASTEXITCODE -ne 0) { exit 1 }
 npx tauri build
 if ($LASTEXITCODE -ne 0) { exit 1 }
 

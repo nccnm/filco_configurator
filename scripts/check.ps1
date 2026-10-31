@@ -30,6 +30,8 @@ Step 'cargo clippy (e2e-sim build)' {
   cargo clippy -p keyboard-layer-editor --all-targets --features e2e-sim --locked -- -D warnings
 }
 Step 'cargo test' { cargo test --workspace --locked }
+# Licences, bans and sources work offline; the advisory database needs the network and runs in release.ps1.
+Step 'cargo deny' { cargo deny check licenses bans sources }
 if (-not $Quick) {
   Step 'exhaustive slot round-trip (release)' { cargo test -p filco-core --release --locked -- --ignored exhaustive }
 }

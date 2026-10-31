@@ -1,0 +1,31 @@
+# cargo deny check: licences of every dependency (so the app can be shared) and known advisories.
+[graph]
+targets = ["x86_64-pc-windows-msvc"]
+all-features = true
+
+[licenses]
+confidence-threshold = 0.9
+allow = [
+  "MIT",
+  "Apache-2.0",
+  "BSD-3-Clause",
+  "Zlib",
+  "Unicode-3.0",
+  "CC0-1.0",
+  # File-level copyleft, pulled in by Tauri (cssparser, selectors...). Fine for sharing: those crates are used
+  # unmodified and their source is public on crates.io.
+  "MPL-2.0",
+]
+
+[licenses.private]
+ignore = true
+
+[advisories]
+yanked = "deny"
+
+[bans]
+multiple-versions = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
