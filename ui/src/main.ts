@@ -1,3 +1,32 @@
+// Fonts are bundled (OFL, from @fontsource): the app works offline and the CSP blocks remote fonts.
+import "@fontsource/ibm-plex-sans/latin-400.css";
+import "@fontsource/ibm-plex-sans/latin-ext-400.css";
+import "@fontsource/ibm-plex-sans/vietnamese-400.css";
+import "@fontsource/ibm-plex-sans/latin-500.css";
+import "@fontsource/ibm-plex-sans/latin-ext-500.css";
+import "@fontsource/ibm-plex-sans/vietnamese-500.css";
+import "@fontsource/ibm-plex-sans/latin-600.css";
+import "@fontsource/ibm-plex-sans/latin-ext-600.css";
+import "@fontsource/ibm-plex-sans/vietnamese-600.css";
+import "@fontsource/ibm-plex-sans/latin-700.css";
+import "@fontsource/ibm-plex-sans/latin-ext-700.css";
+import "@fontsource/ibm-plex-sans/vietnamese-700.css";
+import "@fontsource/ibm-plex-sans-condensed/latin-400.css";
+import "@fontsource/ibm-plex-sans-condensed/latin-ext-400.css";
+import "@fontsource/ibm-plex-sans-condensed/vietnamese-400.css";
+import "@fontsource/ibm-plex-sans-condensed/latin-500.css";
+import "@fontsource/ibm-plex-sans-condensed/latin-ext-500.css";
+import "@fontsource/ibm-plex-sans-condensed/vietnamese-500.css";
+import "@fontsource/ibm-plex-sans-condensed/latin-600.css";
+import "@fontsource/ibm-plex-sans-condensed/latin-ext-600.css";
+import "@fontsource/ibm-plex-sans-condensed/vietnamese-600.css";
+import "@fontsource/ibm-plex-sans-condensed/latin-700.css";
+import "@fontsource/ibm-plex-sans-condensed/latin-ext-700.css";
+import "@fontsource/ibm-plex-sans-condensed/vietnamese-700.css";
+import "@fontsource/ibm-plex-mono/latin-400.css";
+import "@fontsource/ibm-plex-mono/latin-ext-400.css";
+import "@fontsource/ibm-plex-mono/vietnamese-400.css";
+import "./styles/app.css";
 import { mount } from "svelte";
 import App from "./App.svelte";
 

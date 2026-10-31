@@ -27,7 +27,12 @@ kind: string,
 /**
  * Keycap text; empty for an empty slot (the UI shows the printed legend faintly).
  */
-short: string, long: string, 
+short: string, 
+/**
+ * Small line above `short` on the keycap: the modifiers of a long key combination, whose key alone is then
+ * in `short` (so "Ctrl+Shift+Alt+E" stays readable).
+ */
+cap_sub: string | null, long: string, 
 /**
  * Differs from what the keyboard holds.
  */

@@ -1,7 +1,7 @@
 //! Everything the UI receives or sends. The TypeScript side is generated from these types
 //! (`ui/src/bindings/ipc.ts`, see the `bindings_are_current` test), so the two can never disagree.
 
-use filco_core::label::{Lang, slot_label};
+use filco_core::label::{Lang, modifier_names, slot_label};
 use filco_core::model::{KeyTag, Support};
 use filco_core::usage::{self, UsageGroup};
 use filco_core::{ModMask, ModelDescriptor, MouseAction, Slot, SlotKind};
@@ -132,6 +132,9 @@ pub struct SlotView {
     pub kind: String,
     /// Keycap text; empty for an empty slot (the UI shows the printed legend faintly).
     pub short: String,
+    /// Small line above `short` on the keycap: the modifiers of a long key combination, whose key alone is then
+    /// in `short` (so "Ctrl+Shift+Alt+E" stays readable).
+    pub cap_sub: Option<String>,
     pub long: String,
     /// Differs from what the keyboard holds.
     pub changed: bool,
@@ -151,14 +154,53 @@ pub fn kind_name(k: SlotKind) -> &'static str {
     }
 }
 
+/// Longest key combination drawn on one line of a keycap.
+const CAP_CHARS: usize = 7;
+
+/// Modifiers for the small line of a keycap: full names when they fit, else initials ("C+S+A" for Ctrl, Shift,
+/// Alt); the inspector and the diff always show the full names.
+fn cap_mods(names: &[&str]) -> String {
+    let full = names.join("+");
+    if full.chars().count() <= 9 {
+        return full;
+    }
+    names
+        .iter()
+        .map(|n| match *n {
+            "Ctrl" => "C",
+            "Shift" => "S",
+            "Alt" => "A",
+            "Win" => "W",
+            "RCtrl" => "RC",
+            "RShift" => "RS",
+            "RAlt" => "RA",
+            "RWin" => "RW",
+            other => other,
+        })
+        .collect::<Vec<_>>()
+        .join("+")
+}
+
 impl SlotView {
     pub fn new(slot: Slot, changed: bool, lang: UiLang) -> Self {
         let kind = slot.kind();
         let label = slot_label(kind, lang.into());
+        let (short, cap_sub) = match kind {
+            SlotKind::Key { mods, usage }
+                if mods.0 != 0 && usage != 0 && label.short.chars().count() > CAP_CHARS =>
+            {
+                (
+                    usage::keyboard(usage).map_or_else(|| format!("0x{usage:02x}"), |u| u.legend.to_owned()),
+                    Some(cap_mods(&modifier_names(mods))),
+                )
+            }
+            _ => (label.short, None),
+        };
         SlotView {
             hex: slot.to_string(),
             kind: kind_name(kind).to_owned(),
-            short: label.short,
+            short,
+            cap_sub,
             long: label.long,
             changed,
             editable: !matches!(kind, SlotKind::Macro { .. } | SlotKind::Other { .. }),
@@ -533,6 +575,18 @@ mod tests {
             assert_eq!(a.to_slot().unwrap().to_string(), hex, "{a:?}");
         }
         assert!(Action::Raw { hex: "zz".into() }.to_slot().is_err());
+        let combo = SlotView::new("02 07 08 00".parse().unwrap(), false, UiLang::En);
+        assert_eq!(
+            (combo.short.as_str(), combo.cap_sub.as_deref()),
+            ("E", Some("C+S+A"))
+        );
+        let two = SlotView::new("02 0a 16 00".parse().unwrap(), false, UiLang::En);
+        assert_eq!(
+            (two.short.as_str(), two.cap_sub.as_deref()),
+            ("S", Some("Shift+Win"))
+        );
+        let short = SlotView::new("02 01 4f 00".parse().unwrap(), false, UiLang::En);
+        assert_eq!(short.cap_sub, None);
         let json = serde_json::to_string(&Action::Key { mods: 1, usage: 4 }).unwrap();
         assert_eq!(json, r#"{"type":"key","mods":1,"usage":4}"#);
     }
