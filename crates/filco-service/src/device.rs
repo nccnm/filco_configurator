@@ -64,6 +64,19 @@ impl Device {
         Ok(LayerSet::new(pages))
     }
 
+    /// Reads the firmware info block (command 0x30) and decodes it. `Ok(None)` means the firmware has no block:
+    /// either it NACKs 0x30 (stock or an older patch), or the bytes it returns are not a block this app reads.
+    /// A patched image that answers 0x30 always returns a block, so `None` is the "no config to show" case.
+    pub fn read_info(
+        &mut self,
+        progress: &mut dyn FnMut(Progress),
+    ) -> Result<Option<filco_fwinfo::Info>, ProtocolError> {
+        Ok(self
+            .session
+            .read_info(progress)?
+            .and_then(|bytes| filco_fwinfo::parse(&bytes).ok()))
+    }
+
     /// Runs `f` with writes allowed, then makes the transport read-only again.
     pub(crate) fn with_writes<R>(&mut self, f: impl FnOnce(&mut DeviceSession) -> R) -> R {
         self.session.transport_mut().set_policy(WritePolicy::ReadWrite);

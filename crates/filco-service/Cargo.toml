@@ -11,6 +11,7 @@ workspace = true
 
 [dependencies]
 filco-core = { path = "../filco-core" }
+filco-fwinfo = { path = "../filco-fwinfo" }
 filco-protocol = { path = "../filco-protocol" }
 filco-sim = { path = "../filco-sim" }
 serde = { version = "1.0.229", features = ["derive"] }
