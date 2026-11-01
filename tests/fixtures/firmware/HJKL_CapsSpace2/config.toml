@@ -1,0 +1,50 @@
+# Cấu hình firmware tùy biến cho Majestouch Xacro M10SP US (V72).
+# Build:  D:\AI\rea_filco\.venv\Scripts\python -I build.py custom.toml
+# Hướng dẫn đầy đủ, danh sách tên phím và tên mã: README.md trong thư mục này.
+#
+# Trước khi đổi một phím, xác nhận trên bàn phím thật phím đó đang là gì. Ảnh trong FILCO Assist và keymap mặc định
+# có thể khác cấu hình thật: chế độ DIP switch biến vị trí Alt trái (LAlt) hoặc Win trái (LWin) thành Fn2 lúc khởi động.
+
+# Tên bản build: chữ, số, '_' hoặc '-'. Dùng cho thư mục out/<name>/ và tên file.
+name = "HJKL_CapsSpace2"
+
+# Fn + phím = mã. "none" bỏ chức năng Fn của phím đó (giữ Fn rồi nhấn sẽ ra phím thường).
+# Firmware có 39 ô cho chức năng Fn; muốn thêm phím mới khi đã đủ 39 thì phải "none" một phím khác.
+# Fn2 (phím Fn trái do DIP tạo ra) dùng cùng lớp Fn này.
+[fn_layer]
+H = "Left"
+J = "Down"
+K = "Up"
+L = "Right"
+I = "none"        # Fn + I gốc là Up; bỏ để I trả về chữ i
+
+# Mã mặc định của phím khi ô layer trong FILCO Assist để trống. Áp dụng cho mọi layer và mọi bố cục.
+# Ô layer đã gán (FILCO Assist, fnmap.py) và chế độ DIP được ưu tiên hơn.
+# Fn trái (phím thứ 3, cạnh Space trái) là vị trí 83 (Alt trái) bị chế độ DIP đổi thành Fn2. Nó đã được đổi lại thành
+# Alt bằng ô layer, không qua firmware (FN_ANALYSIS.md 9.3). Đổi ở đây không có tác dụng vì chế độ DIP ghi đè keymap.
+[keymap]
+
+# Tap-hold (thêm code vào firmware, taphold.py). Tối đa ba mục: một mục "hold" (giữ = một phím) và hai mục
+# "hold_layer" (giữ = bật một layer trong lúc giữ). Fn + phím giữ nghĩa gốc. Hai phím hold_layer dùng chung một bộ
+# trạng thái: phím nhấn trước được tính, phím kia trong lúc đó là phím thường.
+# - hold: giữ quá term_ms hoặc nhấn thêm phím khác trong lúc giữ là hold ngay. term_ms 50-255, mặc định 200.
+# - hold_layer: chỉ thời gian quyết định (như tap-hold của kanata); phím gõ trong lúc chờ được giữ lại rồi phát sau,
+#   nên gõ nhanh chồng phím vẫn ra đúng thứ tự. hold_layer là số layer theo đèn (1-4). term_ms 50-2000, mặc định 300.
+#   Nội dung layer đó là các ô layer ghi bằng fnmap.py hoặc FILCO Assist (firmware/configs/).
+[[tap_hold]]
+key = "CapsLock"
+tap = "Esc"
+hold = "LCtrl"
+term_ms = 200
+
+[[tap_hold]]
+key = "Space#77"        # Space trái (thử trên bàn phím thật 2026-10-31: 77 là Space trái, 76 là Space phải)
+tap = "Space"
+hold_layer = 3
+term_ms = 300
+
+[[tap_hold]]
+key = "Space#76"        # Space phải
+tap = "Space"
+hold_layer = 4
+term_ms = 300

@@ -1,0 +1,85 @@
+Config: <flash_tool>\examples\hjkl.toml
+Stock:  <flash_tool>\stock\CT_F72US[0xF448]_20240125_0v72_PID1972.hex (word sum F3EA, tag F448)
+Build:  HJKL, 26 bytes changed, word sum E40C, tag E46A, sha256 50df7f59d6a539460d587e2787784725ecbfd8aacdd85efc0e0995c5d8cc5bce
+
+  0xc802: 22 -> 0c  keymap 0xc7ec: I back to its plain code (frees Fn entry 34)
+  0xca02: 22 -> 06  keymap 0xc9ec: I back to its plain code (frees Fn entry 34)
+  0xcc02: 22 -> 18  keymap 0xcbec: I back to its plain code (frees Fn entry 34)
+  0xce02: 22 -> 0c  keymap 0xcdec: I back to its plain code (frees Fn entry 34)
+  0xd002: 22 -> 0c  keymap 0xcfec: I back to its plain code (frees Fn entry 34)
+  0xc635: ab -> a3  bitmap 0xc634: I has no Fn function
+  0xc645: ab -> a3  bitmap 0xc644: I has no Fn function
+  0xc6e6: 0c -> 0b  QWERTY Fn entry 34: plain code of H
+  0xc6e7: 52 -> 50  QWERTY Fn entry 34: Fn + H = Left
+  0xc734: 06 -> 07  Dvorak Fn entry 34: plain code of H
+  0xc735: 52 -> 50  Dvorak Fn entry 34: Fn + H = Left
+  0xc782: 18 -> 0b  Colemak Fn entry 34: plain code of H
+  0xc783: 52 -> 50  Colemak Fn entry 34: Fn + H = Left
+  0xc854: 0b -> 22  keymap 0xc7ec: H uses Fn entry 34
+  0xca54: 07 -> 22  keymap 0xc9ec: H uses Fn entry 34
+  0xcc54: 0b -> 22  keymap 0xcbec: H uses Fn entry 34
+  0xce54: 0b -> 22  keymap 0xcdec: H uses Fn entry 34
+  0xd054: 0b -> 22  keymap 0xcfec: H uses Fn entry 34
+  0xc63a: 49 -> 59  bitmap 0xc634: H has a Fn function
+  0xc64a: 49 -> 59  bitmap 0xc644: H has a Fn function
+  0xc6e9: 50 -> 51  QWERTY Fn entry 35: Fn + J = Down
+  0xc737: 50 -> 51  Dvorak Fn entry 35: Fn + J = Down
+  0xc785: 50 -> 51  Colemak Fn entry 35: Fn + J = Down
+  0xc6eb: 51 -> 52  QWERTY Fn entry 36: Fn + K = Up
+  0xc739: 51 -> 52  Dvorak Fn entry 36: Fn + K = Up
+  0xc787: 51 -> 52  Colemak Fn entry 36: Fn + K = Up
+
+Every key, plain and with Fn (stock Fn = Fn, new Fn = Fn):
+  J                                  got J          expected J          OK
+  Fn + J                             got Down       expected Down       OK
+  I                                  got I          expected I          OK
+  Fn + I                             got I          expected I          OK
+  K                                  got K          expected K          OK
+  Fn + K                             got Up         expected Up         OK
+  L                                  got L          expected L          OK
+  Fn + L                             got Right      expected Right      OK
+  H                                  got H          expected H          OK
+  Fn + H                             got Left       expected Left       OK
+  82 keys compared; lines above are the configured keys and any failure
+Fn keys:
+  Fn alone sends Fn and nothing else: OK [(164, 0), (164, 2)]
+Layer switching (Fn + Alt + 1..4), new firmware:
+  Fn + LAlt + 2: layer 2 OK
+  Fn + LAlt + 3: layer 3 OK
+  Fn + LAlt + 4: layer 4 OK
+  Fn + LAlt + 1: layer 1 OK
+  Fn + RAlt#78 + 2: layer 2 OK
+  Fn + RAlt#78 + 3: layer 3 OK
+  Fn + RAlt#78 + 4: layer 4 OK
+  Fn + RAlt#78 + 1: layer 1 OK
+  (Fn + 1..4 without Alt is covered by the key-by-key comparison above, run before any Alt chord)
+Fn layer with the M10 user slot = Fn on all layers (state of the keyboard since 2026-10-31):
+  M10 + H                            got Left       expected Left       OK
+  M10 + J                            got Down       expected Down       OK
+  M10 + K                            got Up         expected Up         OK
+  M10 + L                            got Right      expected Right      OK
+  M10 + I                            got I          expected I          OK
+Stack depth, static worst case per entry point (stack 512 -> 512 bytes):
+  main                   stock 324  new 324  OK
+  SysTick                stock  36  new  36  OK
+  IRQ0                   stock  36  new  36  OK
+  IRQ1 USB               stock 128  new 128  OK
+  IRQ10 (0x40018000)     stock  76  new  76  OK
+  IRQ15 timer 1 ms       stock  92  new  92  OK
+  IRQ16 CT16B1 LED PWM   stock  44  new  44  OK
+  IRQ29                  stock  44  new  44  OK
+  IRQ31                  stock  44  new  44  OK
+  stack reserved by the patch: 0 bytes
+
+  ISPTitle=CT_247B_F72【2.0】_ISP_0v72_HJKL
+  VID=0x0C45
+  PID=0x7040
+  FWName=CT_F72US[0xE46A]_20240125_0v72_HJKL_PID1972.hex
+  VID=0x2EFD
+  PID=0x1972
+  FWName=CT_F72US[0xE46A]_20240125_0v72_HJKL_PID1972.hex
+  VID=0x2EFD
+  PID=0x2372
+  FWName=CT_F72US[0xE46A]_20240125_0v72_HJKL_PID1972.hex
+All tests passed. Updater: <flash_tool>\out\HJKL\M10SP_72US_V72_HJKL.exe
+Before pressing Start, the updater must show CheckSum : 0xE46A

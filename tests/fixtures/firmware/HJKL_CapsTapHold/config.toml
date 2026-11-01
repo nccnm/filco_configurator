@@ -1,0 +1,35 @@
+# Fn + H/J/K/L kiểu vim và CapsLock tap-hold (Esc / LCtrl).
+# Cấu hình của các bản đã nạp 0x5C61 (flashed/2026-10-31_HJKL_CapsTapHold/) và 0x3843 (..._v1/, code đời đầu gọi
+# lồng, stack sâu hơn bản gốc 24 byte; FN_ANALYSIS.md mục 11). taphold.py hiện tại build cấu hình này ra mã khác.
+# Build:  D:\AI\rea_filco\.venv\Scripts\python -I build.py examples\hjkl_capstaphold.toml
+# Hướng dẫn đầy đủ, danh sách tên phím và tên mã: README.md trong thư mục này.
+#
+# Trước khi đổi một phím, xác nhận trên bàn phím thật phím đó đang là gì. Ảnh trong FILCO Assist và keymap mặc định
+# có thể khác cấu hình thật: chế độ DIP switch biến vị trí Alt trái (LAlt) hoặc Win trái (LWin) thành Fn2 lúc khởi động.
+
+# Tên bản build: chữ, số, '_' hoặc '-'. Dùng cho thư mục out/<name>/ và tên file.
+name = "HJKL_CapsTapHold"
+
+# Fn + phím = mã. "none" bỏ chức năng Fn của phím đó (giữ Fn rồi nhấn sẽ ra phím thường).
+# Firmware có 39 ô cho chức năng Fn; muốn thêm phím mới khi đã đủ 39 thì phải "none" một phím khác.
+# Fn2 (phím Fn trái do DIP tạo ra) dùng cùng lớp Fn này.
+[fn_layer]
+H = "Left"
+J = "Down"
+K = "Up"
+L = "Right"
+I = "none"        # Fn + I gốc là Up; bỏ để I trả về chữ i
+
+# Mã mặc định của phím khi ô layer trong FILCO Assist để trống. Áp dụng cho mọi layer và mọi bố cục.
+# Ô layer đã gán (FILCO Assist, fnmap.py) và chế độ DIP được ưu tiên hơn.
+# Fn trái (phím thứ 3, cạnh Space trái) là vị trí 83 (Alt trái) bị chế độ DIP đổi thành Fn2. Nó đã được đổi lại thành
+# Alt bằng ô layer, không qua firmware (FN_ANALYSIS.md 9.3). Đổi ở đây không có tác dụng vì chế độ DIP ghi đè keymap.
+[keymap]
+
+# Tap-hold cho một phím (thêm code vào firmware, taphold.py): nhấn nhả nhanh = tap, giữ quá term_ms hoặc nhấn
+# thêm phím khác trong lúc giữ = hold. Fn + phím giữ nghĩa gốc. term_ms 50-255, mặc định 200.
+[tap_hold]
+key = "CapsLock"
+tap = "Esc"
+hold = "LCtrl"
+term_ms = 200

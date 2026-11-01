@@ -1,0 +1,10 @@
+# Bản đã nạp lên bàn phím ngày 2026-10-31: chỉ Fn + H/J/K/L kiểu vim.
+# Build lại phải ra HEX giống hệt flashed/2026-10-31_HJKL/.
+name = "HJKL"
+
+[fn_layer]
+H = "Left"
+J = "Down"
+K = "Up"
+L = "Right"
+I = "none"

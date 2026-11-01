@@ -4,3 +4,7 @@
 *.ico binary
 *.woff2 binary
 *.ps1 text eol=crlf
+*.hex -text
+*.exe binary
+firmware/** -text
+tests/fixtures/firmware/** -text

@@ -38,9 +38,12 @@ Người dùng quyết định (chi tiết ở mục 12):
   `rea_filco` chỉ còn là nguồn tham khảo; dữ liệu golden lấy từ đó một lần và commit như dữ liệu.
 - Người dùng có license firmware V72: firmware gốc và trình cập nhật chính hãng được commit vào repo và đi kèm bộ cài.
   Thay quy định cũ "repo không chứa firmware". Cài trên máy khác là chạy được, không cần gì thêm.
-- Ứng dụng đọc cấu hình firmware từ bàn phím (lệnh HID 0x30, khối thông tin), hiển thị tap-hold, cho sửa tap-hold /
-  Fn + phím / keymap mặc định, tự vá từ V72 gốc, kiểm trên trình giả lập Cortex-M0 viết bằng Rust, rồi nạp bằng trình
-  cập nhật chính hãng (người dùng kiểm CheckSum và bấm Start).
+- Phạm vi của ứng dụng này (giai đoạn 2): **đọc và hiển thị**. Ứng dụng đọc cấu hình firmware từ bàn phím (lệnh HID
+  0x30, khối thông tin) và hiển thị tap-hold / Fn + phím / keymap mặc định; đóng gói sẵn firmware gốc và trình cập
+  nhật chính hãng vào bộ cài để nạp (người dùng kiểm CheckSum và bấm Start).
+- Việc **dựng ảnh firmware tùy biến** (vá bảng dữ liệu và chèn code tap-hold / code lệnh 0x30 từ V72 gốc, giả lập
+  Cortex-M0 để kiểm, dựng trình cập nhật) tách ra một task riêng sau này; mô tả chi tiết ở `docs/DEFERRED_FIRMWARE_BUILD.md`.
+  Cho tới khi task đó xong, ảnh tùy biến vẫn do `rea_filco` (Python) dựng; ứng dụng chỉ đọc kết quả qua 0x30.
 
 ## 0. Tóm tắt
 
@@ -584,17 +587,19 @@ Rủi ro:
 
 ### 12.1 Mục tiêu
 
+Phạm vi giai đoạn 2 của ứng dụng này là **đọc và hiển thị** (mục 1-2). Việc dựng ảnh firmware tùy biến (mục 3) tách
+ra task riêng, mô tả ở mục 12.9 và `docs/DEFERRED_FIRMWARE_BUILD.md`.
+
 1. Đọc: khi kết nối, ứng dụng gửi lệnh 0x30. Firmware có khối thông tin trả về tên bản build và danh sách thay đổi
    (tap-hold, Fn + phím, keymap mặc định); firmware gốc hay bản vá cũ trả NACK và ứng dụng báo "firmware không có
    thông tin cấu hình". Không suy đoán, không cần người dùng khai báo.
 2. Hiển thị: CapsLock vẽ "Esc / giữ Ctrl", Space trái "Space / giữ L3"; phím giữ để vào layer tô đậm trên layer đó
    (như trang "M10SP layer setup"); ô layer của phím tap-hold bị khóa kèm lý do; Fn + phím đã đổi hiện trong
-   inspector.
-3. Sửa và nạp: trang "Firmware" cho sửa tap-hold (tối đa 1 giữ = phím, 2 giữ = layer), Fn + phím, keymap mặc định.
-   Ứng dụng vá từ V72 gốc, chạy toàn bộ kiểm thử trên trình giả lập, dựng trình cập nhật, mở nó; người dùng kiểm
-   CheckSum và bấm Start; cắm lại thì ứng dụng đọc khối thông tin để xác nhận đúng bản vừa nạp.
-4. Độc lập: bộ cài chứa firmware gốc và trình cập nhật; mọi bước trên chạy trong ứng dụng, không cần Python, không cần
-   repo `rea_filco`.
+   inspector. Nguồn dữ liệu chỉ là khối thông tin đọc được, không dựng lại hay vá firmware.
+3. (Task sau - mục 12.9) Sửa và nạp: dựng ảnh tùy biến từ V72 gốc, kiểm trên giả lập, dựng trình cập nhật. Cho tới
+   khi task đó xong, ảnh tùy biến do `rea_filco` dựng; người dùng nạp bằng trình cập nhật đi kèm bộ cài.
+4. Độc lập (phần đọc + hiển thị): bộ cài chứa firmware gốc và trình cập nhật; phần đọc và hiển thị chạy hoàn toàn
+   trong ứng dụng, không cần Python.
 
 ### 12.2 Khối thông tin và lệnh 0x30
 
@@ -607,36 +612,38 @@ dung` (1 tap-hold giữ = phím, 2 tap-hold giữ = layer, 3 Fn + phím, 4 keyma
 Phía giao thức: `filco-protocol` thêm lệnh 0x30 vào phiên đọc và vào danh sách lệnh chỉ đọc được phép; `filco-sim`
 có chế độ có khối / trả NACK; dịch vụ đọc khối một lần sau khi đọc 4 layer.
 
-### 12.3 Crate mới
+### 12.3 Crate mới (phần đọc + hiển thị)
+
+Giai đoạn này chỉ thêm phần đọc và phân tích, không có crate nào sinh code máy hay dựng ảnh firmware.
 
 | Crate | Nội dung |
 |---|---|
-| `crates/filco-firmware` | Ảnh 64 KB, đọc/ghi Intel HEX giữ đúng bố cục bản ghi của bản gốc, tổng word và tag CheckSum; mô tả V72 (địa chỉ bảng Fn, keymap, bitmap, các điểm nối) kèm kiểm byte gốc trước mỗi lần sửa; các thao tác vá: Fn + phím, keymap, vị trí Fn, tap-hold, khối thông tin; nhật ký từng byte; `FirmwareConfig` (serde) và mã hóa / đọc khối thông tin |
-| `crates/thumb` | Bộ mã hóa Thumb-1 (ARMv6-M) + BL, nhãn và literal pool, đủ cho code tap-hold và lệnh 0x30; từ chối lệnh 32 bit khác BL. Thay Keystone |
-| `crates/m0emu` | Trình thông dịch Cortex-M0 (ARMv6-M Thumb) thuần Rust: bộ nhớ flash/RAM/ngoại vi, hook theo địa chỉ, khởi động từ vector reset; mô hình ma trận phím, bỏ qua vòng chờ 0xb090, gọi ISR timer sau mỗi bước, máy tính HID giả (như `HidHost`) |
-| `crates/filco-fwtest` | Các kiểm thử của `build.py` viết lại: so từng phím thường và kèm Fn với bản gốc, Fn + Alt + số, tap-hold (giữ = phím), giữ = layer (13 kịch bản), hai phím giữ = layer, khối thông tin qua HID, độ sâu stack tĩnh (port `stackdepth.py`). Chạy trong ứng dụng trước khi cho nạp, và trong `cargo test` |
-| `crates/filco-updater` | Dựng trình cập nhật: chép trình cập nhật chính hãng, thay kho ZIP ở tài nguyên RT_RCDATA 4011 (HEX mới, `FWName`, `ISPTitle`) qua API tài nguyên Windows, đọc lại để kiểm; mở trình cập nhật và chờ bàn phím cắm lại |
-| `firmware/` | `CT_F72US[0xF448]_20240125_0v72_PID1972.hex`, `M10SP_72US_V72_stock.exe`, SHA-256 của cả hai (kiểm lúc chạy), ghi chú license |
+| `crates/filco-fwinfo` | Giải mã khối thông tin 512 byte: chữ ký `KLEI`, phiên bản định dạng, tên build, các mục TLV (1 tap-hold giữ = phím, 2 tap-hold giữ = layer, 3 Fn + phím, 4 keymap); bỏ qua loại chưa biết. Thuần đọc; port `parse()` của `fwinfo.py`. Dùng để hiển thị, không dựng khối |
+| `firmware/` | `CT_F72US[0xF448]_20240125_0v72_PID1972.hex`, `M10SP_72US_V72_stock.exe`, SHA-256 của cả hai (kiểm lúc chạy), ghi chú license. Đóng gói vào bộ cài để người dùng nạp ảnh do `rea_filco` dựng |
 
-`filco-service` thêm `FirmwareSession` (đọc khối, sửa cấu hình firmware, build, kiểm thử, dựng trình cập nhật, theo
-dõi lần nạp); `src-tauri` thêm lệnh IPC; UI thêm trang Firmware và phần hiển thị tap-hold trên bàn phím.
+`filco-protocol` thêm lệnh 0x30 vào phiên đọc và danh sách lệnh chỉ đọc; `filco-sim` có chế độ có khối / trả NACK;
+`filco-service` đọc khối một lần sau khi đọc 4 layer và cung cấp cho UI; `src-tauri` thêm lệnh IPC; UI hiển thị
+tap-hold trên bàn phím và khóa ô layer tương ứng. Không có crate `thumb`, `m0emu`, `filco-fwtest`, `filco-updater`
+hay thao tác vá trong `filco-firmware` ở giai đoạn này; chúng thuộc task 12.9.
 
-### 12.4 Kiểm chứng
+### 12.4 Kiểm chứng (phần đọc + hiển thị)
 
 - Golden từ `rea_filco` (lấy một lần, commit vào `tests/fixtures/firmware/` như dữ liệu): cấu hình TOML, ảnh `.bin`,
   `.hex`, `PATCH_DIFF.txt`, `TEST_REPORT.txt` của 5 bản build (`HJKL`, `HJKL_CapsTapHold`, `HJKL_CapsSpace`,
-  `HJKL_CapsSpace2`, `HJKL_CapsSpace2_Info`). Rust phải ra ảnh và HEX giống từng byte, cùng tag, cùng nhật ký byte.
-- `thumb`: mã sinh ra giống từng byte mã Keystone trong các ảnh golden.
-- `m0emu`: chạy bộ kiểm thử trên 5 ảnh golden phải cho cùng kết quả từng dòng với `TEST_REPORT.txt` (sinh bởi
-  Unicorn). Thêm test lệnh lẻ cho từng nhóm lệnh ARMv6-M (cờ, nhân, dịch, nạp/lưu, rẽ nhánh) đối chiếu ARM ARM.
-- Mô hình HID giả phải đọc đúng 4 trang layer trên firmware gốc (ACK, 8 gói, checksum), như đã kiểm bằng Unicorn.
-- `filco-updater`: với cùng HEX, trình cập nhật dựng ra giống từng byte bản `isp_exe.py` đã dựng (các bản trong
-  `rea_filco/firmware/flash_tool/flashed/` đã nạp thành công).
-- Thiết bị thật: chỉ đọc (0x10, 0x02, 0x30) do ứng dụng tự chạy; mọi lần nạp do người dùng bấm Start. Bản đầu tiên
-  có lệnh 0x30 (`HJKL_CapsSpace2_Info`, CheckSum 0x1321) do `rea_filco` dựng; người dùng nạp để kiểm 0x30 trên máy
-  thật trước khi ứng dụng phụ thuộc vào nó.
+  `HJKL_CapsSpace2`, `HJKL_CapsSpace2_Info`). Giai đoạn này dùng chúng làm dữ liệu test cho phần đọc.
+- `filco-fwinfo`: đọc khối trong `HJKL_CapsSpace2_Info/image.bin` (offset 0xe600) phải ra đúng tên build, 1 tap-hold
+  giữ = phím (CapsLock: Esc / LCtrl, 200 ms) và 2 tap-hold giữ = layer (Space#77 → L3, Space#76 → L4, 300 ms), khớp
+  với `config.toml` của bản đó. Đọc khối trong 4 bản còn lại (không có khối) phải trả "không có khối".
+- `filco-sim`: thiết bị giả chế độ có khối trả đúng khối qua 0x30 (ACK, 8 gói, checksum); chế độ không có khối trả
+  NACK. `filco-service` đọc một lần và cung cấp cho UI.
+- Thiết bị thật: chỉ đọc (0x10, 0x02, 0x30) do ứng dụng tự chạy. Bản có lệnh 0x30 (`HJKL_CapsSpace2_Info`, CheckSum
+  0x1321) do `rea_filco` dựng; người dùng nạp để kiểm 0x30 trên máy thật, rồi ứng dụng đọc và hiển thị.
 
 ### 12.5 An toàn khi nạp
+
+(Mô tả hành vi đích. Luồng dựng ảnh trong ứng dụng thuộc task 12.9; tới khi đó người dùng nạp ảnh do `rea_filco` dựng,
+theo nguyên tắc an toàn của repo đó.)
+
 
 - Chỉ nạp ảnh đã qua toàn bộ kiểm thử trong cùng phiên; ứng dụng hiện CheckSum phải thấy trong trình cập nhật.
 - Trước khi mở trình cập nhật: đọc và sao lưu 4 layer (trình cập nhật không ghi vùng cấu hình, nhưng vẫn sao lưu);
@@ -651,26 +658,30 @@ dõi lần nạp); `src-tauri` thêm lệnh IPC; UI thêm trang Firmware và ph�
 `tools/golden/gen_fnmap_golden.py` được thay bằng lệnh Rust (`filco-cli`) hoặc bỏ: file model JSON thành nguồn chính,
 golden hiện có giữ như dữ liệu. `check.ps1` kiểm không còn file `.py` nào trong repo.
 
-### 12.7 Mốc
+### 12.7 Mốc (phần đọc + hiển thị)
 
 | Mốc | Nội dung | Xong khi |
 |---|---|---|
-| F1 | `filco-firmware` + `thumb`, firmware gốc vào `firmware/`, golden vào `tests/fixtures/firmware/` | 5 bản build ra ảnh, HEX, tag và nhật ký byte giống golden; `check.ps1` xanh |
-| F2 | `m0emu` + `filco-fwtest` | Kết quả kiểm thử trên 5 ảnh golden khớp `TEST_REPORT.txt` từng dòng; mô hình HID đọc đúng 4 layer trên bản gốc; một lần build + kiểm thử dưới 15 giây |
+| F1 | Firmware gốc + trình cập nhật vào `firmware/` (kèm SHA-256, ghi chú license); golden vào `tests/fixtures/firmware/`; quy tắc `.gitattributes` giữ nguyên byte | `check.ps1` xanh; HEX và exe đọc lại đúng SHA-256 đã ghi |
+| F2 | `crates/filco-fwinfo`: giải mã khối thông tin (port `parse()`) | Đọc đúng khối trong `HJKL_CapsSpace2_Info/image.bin`; 4 bản còn lại trả "không có khối" |
 | F3 | Lệnh 0x30 trong giao thức, sim, dịch vụ; hiển thị tap-hold, khóa ô, phím giữ layer; E2E và ảnh chuẩn | Trên thiết bị giả đủ hai trường hợp (có khối / NACK); trên bàn phím thật đã nạp 0x1321: đọc đúng khối |
-| F4 | `filco-updater` | Trình cập nhật dựng bằng Rust giống từng byte bản `isp_exe.py` với cùng HEX |
-| F5 | Trang Firmware: sửa, build, kiểm thử, nạp, xác nhận sau nạp, đường lui | E2E trên thiết bị giả (không chạy trình cập nhật thật trong test); checklist nạp thủ công có kiểm trên máy thật |
-| F6 | Bỏ Python (12.6), README, STATUS, bộ cài có firmware | Không còn `.py`; bộ cài cài trên máy sạch chạy được đủ luồng; kích thước bộ cài trong ngân sách mới |
+| F4 | Bộ cài có firmware gốc + trình cập nhật; README, STATUS | Bộ cài trên máy sạch: đọc + hiển thị chạy được, nạp được ảnh `rea_filco`; kích thước trong ngân sách |
 
-Ngân sách: bộ cài đến 8 MB (thêm trình cập nhật 1,9 MB và HEX 0,2 MB); build + kiểm thử firmware dưới 15 giây; bộ
-nhớ trình giả lập không tính vào ngân sách lúc rảnh (chỉ chạy khi build).
+Ngân sách: bộ cài đến 8 MB (thêm trình cập nhật 1,9 MB và HEX 0,2 MB). Phần đọc + hiển thị không chạy giả lập nên
+không tốn ngân sách build.
 
-### 12.8 Rủi ro
+### 12.8 Rủi ro (phần đọc + hiển thị)
 
 | Rủi ro | Giảm thiểu |
 |---|---|
-| Trình thông dịch Cortex-M0 tự viết sai ở lệnh hiếm | Đối chiếu kết quả với `TEST_REPORT.txt` của Unicorn trên 5 ảnh; test từng nhóm lệnh; dừng ngay ở lệnh chưa hỗ trợ thay vì đoán |
-| Bộ mã hóa Thumb khác Keystone | So từng byte với ảnh golden; từ chối mọi lệnh 32 bit khác BL |
-| Lệnh 0x30 chưa chạy trên bàn phím thật | Người dùng nạp bản 0x1321 trước F3; kiểm 0x30 và đọc layer sau đó |
-| Nạp sai bản | Chỉ nạp ảnh vừa qua kiểm thử; CheckSum hiện trước khi bấm Start; xác nhận tên build sau khi cắm lại |
-| API tài nguyên Windows khác nhau giữa máy | Đọc lại tài nguyên sau khi ghi và so; test trên máy này, bộ cài trên máy sạch |
+| Khối thông tin đọc sai hoặc bản vá cũ không có khối | Kiểm `parse()` với golden; loại chưa biết thì bỏ qua; không có khối thì báo rõ, không suy đoán |
+| Lệnh 0x30 chưa chạy trên bàn phím thật | Người dùng nạp bản 0x1321 (do `rea_filco` dựng) trước F3; kiểm 0x30 và đọc layer sau đó |
+| Hiển thị tap-hold lệch với hành vi thật của firmware | Chỉ hiển thị đúng những gì khối ghi; không dựng lại logic tap-hold trong ứng dụng |
+
+### 12.9 Task hoãn: dựng ảnh firmware tùy biến trong ứng dụng
+
+Tách khỏi giai đoạn đọc + hiển thị. Mục tiêu: cho ứng dụng tự dựng ảnh V72 tùy biến (vá bảng dữ liệu Fn + phím /
+keymap / vị trí Fn, và chèn code tap-hold cùng code trả lời lệnh 0x30), kiểm trên trình giả lập Cortex-M0 thuần Rust,
+rồi dựng trình cập nhật - thay cho `rea_filco` (Python). Chi tiết đầy đủ (crate, nguồn tham khảo, cách kiểm chứng
+từng byte với golden, ngân sách) ở `docs/DEFERRED_FIRMWARE_BUILD.md`. Chừng nào task này chưa làm, ảnh tùy biến do
+`rea_filco` dựng và người dùng nạp bằng trình cập nhật đi kèm bộ cài.
