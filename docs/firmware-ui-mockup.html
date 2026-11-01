@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trang Firmware: phác thiết kế để duyệt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Tokens copied from ui/src/styles/app.css; --c-fw is the one new token (firmware mode accent). */
+:root {
+  --paper:#fbfbfa; --ink:#1d2126; --line:#9aa1a8; --faint:#b9bec3; --soft:#eef0f1;
+  --c-l1:#b4532a; --c-l2:#a3367c; --c-l3:#2e7d4f; --c-l4:#6a4aa5; --c-fw:#0a85bd;
+  --warn:#8a6a12; --bad:#b3261e; --good:#2e7d4f; --warn-bg:#f7f1df; --bad-bg:#f8e9e7;
+  --scrim:rgb(20 22 25 / 38%); --dialog-shadow:0 18px 50px rgb(0 0 0 / 22%);
+  --font-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --font-key:"IBM Plex Sans Condensed","Arial Narrow","Segoe UI",sans-serif;
+  --font-mono:"IBM Plex Mono",Consolas,monospace;
+  --acc:var(--c-fw);
+  color-scheme:light;
+}
+:root[data-theme="dark"] {
+  --paper:#16191c; --ink:#e6e8ea; --line:#69717a; --faint:#4a5058; --soft:#1f2327;
+  --c-l1:#e08a5c; --c-l2:#e48cc4; --c-l3:#6cc28f; --c-l4:#b49ae6; --c-fw:#4fc1f0;
+  --warn:#d4b45a; --bad:#f2a29b; --good:#6cc28f; --warn-bg:#2a2516; --bad-bg:#2e1b1a;
+  --scrim:rgb(0 0 0 / 70%); --dialog-shadow:0 18px 60px rgb(0 0 0 / 60%);
+  color-scheme:dark;
+}
+/* Proposed changes to app.css: --c-fw (sky blue) is new, and --c-l2 moves from blue to berry so blue belongs
+   to firmware mode only. Tab dots keep the real LED colours from the model file (layer 2 LED is blue). */
+:root[data-accent="old"] { --c-l2:#2f63b0; --c-fw:#1f6f78; }
+:root[data-accent="old"][data-theme="dark"] { --c-l2:#7fa8e8; --c-fw:#67c2c9; }
+.palette { display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin:0 0 12px; font-size:13px; color:var(--ink); }
+.palette span { display:inline-flex; align-items:center; gap:6px; }
+.palette i { width:26px; height:14px; border-radius:3px; display:inline-block; }
+* { box-sizing:border-box; }
+html,body { margin:0; background:var(--soft); color:var(--ink); font-family:var(--font-body); }
+button { font:inherit; color:inherit; }
+
+/* ---- mockup chrome (not part of the design) ---- */
+.mock { max-width:1240px; margin:0 auto; padding:18px 16px 40px; }
+.mock h1 { font-size:20px; margin:0 0 4px; }
+.mock .lead { margin:0 0 12px; color:var(--line); font-size:14px; max-width:980px; line-height:1.45; }
+.nav { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px; align-items:center; }
+.nav a, .nav button { border:1px solid var(--line); background:var(--paper); border-radius:8px; padding:5px 10px;
+  font-size:13px; color:var(--ink); text-decoration:none; cursor:pointer; }
+.nav a[aria-current="page"] { border-color:var(--ink); font-weight:600; box-shadow:inset 0 0 0 1px var(--ink); }
+.nav .sp { flex:1; }
+.caption { font-size:13.5px; line-height:1.5; margin:10px 2px 0; max-width:1100px; }
+.caption b { font-weight:600; }
+
+/* ---- the app window ---- */
+.app { position:relative; background:var(--paper); border:1px solid var(--line); border-radius:10px; overflow:hidden;
+  aspect-ratio:16/10; min-height:640px; display:flex; flex-direction:column; font-size:14px; }
+.top { padding:12px 18px 0; border-bottom:1px solid var(--faint); }
+.brand { font-size:12px; color:var(--line); } .brand b { color:var(--ink); font-weight:600; }
+.row1 { display:flex; align-items:center; gap:12px; margin:4px 0 8px; }
+.row1 h2 { font-size:22px; margin:0; font-weight:600; }
+.conn { font-size:13px; } .conn::before { content:"\25CF"; color:var(--good); margin-right:6px; }
+.row1 .sp { flex:1; }
+.btn { border:1px solid var(--line); background:var(--paper); border-radius:7px; padding:6px 12px; font-size:13.5px;
+  font-weight:500; cursor:pointer; white-space:nowrap; }
+.btn.primary { background:var(--acc); border-color:var(--acc); color:var(--paper); font-weight:600; }
+.btn.ghost { border-color:transparent; color:var(--line); }
+.btn[disabled] { opacity:.5; cursor:default; }
+.row2 { display:flex; align-items:center; gap:8px; padding-bottom:10px; }
+.tab { border:1px solid var(--line); border-radius:7px; padding:5px 12px; font-size:14px; display:flex; align-items:center;
+  gap:7px; background:var(--paper); }
+.tab i { width:10px; height:10px; border-radius:50%; display:inline-block; }
+.tab.fw { border-color:var(--acc); color:var(--acc); font-weight:600; box-shadow:inset 0 0 0 1px var(--acc);
+  background:color-mix(in srgb, var(--acc) 8%, var(--paper)); }
+.tab.fw svg { width:14px; height:14px; }
+.vsep { width:1px; align-self:stretch; background:var(--faint); margin:2px 4px; }
+.count { background:var(--acc); color:var(--paper); border-radius:9px; font-size:11px; font-weight:700; padding:0 6px; }
+.banner { display:flex; gap:10px; align-items:baseline; padding:7px 18px; font-size:13px;
+  background:color-mix(in srgb, var(--acc) 7%, var(--paper)); border-bottom:1px solid color-mix(in srgb, var(--acc) 35%, var(--paper)); }
+.banner b { color:var(--acc); font-weight:600; }
+.banner .mono { font-family:var(--font-mono); font-size:12.5px; }
+.banner .sp { flex:1; }
+.board { flex:1 1 auto; min-height:0; padding:12px 26px 6px; }
+.board svg { width:100%; height:100%; display:block; }
+.insp { border-top:1px solid var(--faint); padding:8px 18px 10px; height:39%; display:flex; flex-direction:column; gap:8px; }
+.ihead { display:flex; align-items:baseline; gap:12px; }
+.ihead h3 { margin:0; font-size:16.5px; font-weight:600; }
+.ihead .sum { font-size:13.5px; }
+.ihead .sp { flex:1; }
+.ibody { flex:1; min-height:0; display:grid; grid-template-columns:200px 1fr; gap:18px; }
+.side { border-right:1px solid var(--faint); padding-right:12px; display:flex; flex-direction:column; gap:3px; }
+.side .it { padding:6px 12px; border-radius:7px; font-size:14.5px; display:flex; justify-content:space-between; }
+.side .it.on { border:1px solid var(--acc); color:var(--acc); background:color-mix(in srgb, var(--acc) 10%, var(--paper)); font-weight:600; }
+.side .it small { color:var(--line); font-weight:400; font-size:12px; }
+.side .note { margin-top:auto; font-size:12px; color:var(--line); line-height:1.4; }
+.form { display:flex; flex-direction:column; gap:10px; font-size:13.5px; overflow:hidden; }
+.frow { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.flabel { width:92px; color:var(--line); flex:none; }
+.seg { display:inline-flex; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+.seg span { padding:5px 12px; border-right:1px solid var(--line); }
+.seg span:last-child { border-right:0; }
+.seg span.on { background:color-mix(in srgb, var(--acc) 14%, var(--paper)); color:var(--acc); font-weight:600; }
+.seg span.off { color:var(--faint); }
+.chip { border:1px solid var(--line); border-radius:7px; padding:4px 10px; font-family:var(--font-key); font-weight:600;
+  font-size:14px; min-width:64px; text-align:center; background:var(--paper); }
+.chip.on { border-color:var(--acc); box-shadow:inset 0 0 0 1px var(--acc); }
+.slider { width:260px; accent-color:var(--acc); }
+.num { border:1px solid var(--line); border-radius:6px; padding:3px 6px; width:62px; font-family:var(--font-mono); font-size:13px; }
+.hint { color:var(--line); font-size:12.5px; line-height:1.45; }
+.quota { font-size:12.5px; }
+.quota b { font-weight:600; }
+.picker { display:flex; flex-direction:column; gap:6px; }
+.search { border:1px solid var(--line); border-radius:7px; padding:6px 10px; width:300px; color:var(--line); font-size:13.5px; }
+.grp { font-size:12.5px; color:var(--line); }
+.grid { display:flex; flex-wrap:wrap; gap:6px; }
+.grid span { width:66px; height:44px; border:1px solid var(--line); border-radius:7px; display:flex; align-items:center;
+  justify-content:center; font-family:var(--font-key); font-weight:600; font-size:14px; }
+.grid span.on { border-color:var(--acc); box-shadow:inset 0 0 0 1px var(--acc); color:var(--acc);
+  background:color-mix(in srgb, var(--acc) 10%, var(--paper)); }
+.grid span.faint { color:var(--faint); font-weight:500; }
+.grid.wide span { width:auto; min-width:66px; padding:0 10px; white-space:nowrap; }
+
+/* keys (same structure and classes as Keyboard.svelte) */
+.key .outer { fill:none; stroke:var(--line); stroke-width:1; }
+.key .inner { fill:var(--paper); stroke:var(--line); stroke-width:1; }
+.key.mkey .outer { fill:var(--soft); }
+.key.custom .outer { stroke:var(--acc); stroke-width:1.6; }
+.key.custom .inner { stroke:var(--acc); }
+.key.taphold .inner { fill:color-mix(in srgb, var(--acc) 7%, var(--paper)); stroke-dasharray:3 3; }
+.key.selected .outer { fill:color-mix(in srgb, var(--acc) 16%, var(--paper)); stroke:var(--ink); stroke-width:2; }
+.lg-main { fill:var(--ink); font-family:var(--font-key); font-weight:500; }
+.key.custom .lg-main { font-weight:700; }
+.lg-faint { fill:var(--faint); font-family:var(--font-key); }
+.lg-fn { fill:var(--line); font-family:var(--font-key); font-weight:500; }
+.lg-main.mine { fill:var(--acc); }
+.ic { color:var(--ink); fill:none; stroke:currentColor; stroke-width:1.2; stroke-linecap:round; stroke-linejoin:round; }
+.ic.mine { color:var(--acc); stroke-width:1.5; }
+.ic .solid { fill:currentColor; }
+.grid span svg { width:30px; height:24px; }
+.grid span.on .ic { color:var(--acc); }
+.lg-hold { fill:var(--acc); font-family:var(--font-key); font-weight:600; }
+.dot { fill:var(--acc); stroke:var(--paper); stroke-width:1.5; }
+
+/* dialogs */
+.scrim { position:absolute; inset:0; background:var(--scrim); display:none; align-items:center; justify-content:center; }
+.scrim.show { display:flex; }
+.dlg { background:var(--paper); border:1px solid var(--line); border-radius:10px; box-shadow:var(--dialog-shadow);
+  width:min(760px, 92%); max-height:88%; overflow:auto; padding:18px 22px; display:none; flex-direction:column; gap:12px; }
+.dlg.show { display:flex; }
+.dlg h4 { margin:0; font-size:18px; font-weight:600; }
+.dlg .acts { display:flex; justify-content:flex-end; gap:8px; margin-top:4px; }
+.field { display:flex; gap:10px; align-items:center; font-size:13.5px; }
+.field .flabel { width:150px; }
+.input { border:1px solid var(--line); border-radius:7px; padding:6px 10px; font-family:var(--font-mono); font-size:13.5px; width:320px; }
+.steps { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px; font-size:13.5px; }
+.steps li { display:grid; grid-template-columns:22px 1fr auto; gap:8px; align-items:baseline; }
+.steps .s { font-weight:700; text-align:center; }
+.steps .s.ok { color:var(--good); } .steps .s.run { color:var(--acc); } .steps .s.wait { color:var(--faint); }
+.steps .s.bad { color:var(--bad); }
+.steps .r { color:var(--line); font-size:12.5px; font-family:var(--font-mono); }
+.steps li.cur { font-weight:600; }
+.bar { height:6px; border-radius:3px; background:var(--soft); overflow:hidden; }
+.bar i { display:block; height:100%; width:58%; background:var(--acc); }
+.verdict { border-radius:8px; padding:10px 14px; display:flex; align-items:center; gap:16px; }
+.verdict.ok { background:color-mix(in srgb, var(--good) 10%, var(--paper)); border:1px solid color-mix(in srgb, var(--good) 45%, var(--paper)); }
+.verdict.bad { background:var(--bad-bg); border:1px solid color-mix(in srgb, var(--bad) 45%, var(--paper)); }
+.verdict .big { font-size:17px; font-weight:600; }
+.verdict.ok .big { color:var(--good); } .verdict.bad .big { color:var(--bad); }
+.tag { margin-left:auto; text-align:right; font-size:12px; color:var(--line); }
+.tag b { display:block; font-family:var(--font-mono); font-size:22px; color:var(--ink); font-weight:500; }
+.rep { font-family:var(--font-mono); font-size:12px; background:var(--soft); border-radius:7px; padding:8px 10px;
+  white-space:pre; overflow:auto; line-height:1.45; max-height:150px; }
+.rep .f { color:var(--bad); font-weight:500; }
+.stepper { display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+.stepper div { border-top:3px solid var(--faint); padding-top:6px; font-size:12.5px; color:var(--line); }
+.stepper div.done { border-color:var(--good); color:var(--ink); }
+.stepper div.cur { border-color:var(--acc); color:var(--ink); font-weight:600; }
+.checksum { border:2px solid var(--acc); border-radius:9px; padding:10px 16px; display:flex; align-items:center; gap:16px; }
+.checksum .v { font-family:var(--font-mono); font-size:26px; font-weight:500; }
+.checksum p { margin:0; font-size:13px; line-height:1.45; }
+.wait { font-size:13px; color:var(--line); display:flex; gap:8px; align-items:center; }
+.wait::before { content:""; width:10px; height:10px; border-radius:50%; border:2px solid var(--acc); border-right-color:transparent; }
+.list { margin:0; padding-left:18px; font-size:13.5px; line-height:1.6; }
+</style>
+</head>
+<body>
+<div class="mock">
+  <h1>Trang Firmware: phác thiết kế để duyệt</h1>
+  <p class="lead">Mockup tĩnh, cùng token màu, phông và cấu trúc phím với ứng dụng (dữ liệu thật: bố cục M10SP, bảng Fn của V72,
+  cấu hình bản HJKL_CapsSpace2_Info đang trên bàn phím, cộng 2 thay đổi nháp: Fn + U = PgUp và ngưỡng Space phải 250 ms).
+  Chọn từng màn hình bên dưới. Chi tiết và các câu hỏi cần chọn: <code>docs/FIRMWARE_UI_DESIGN.md</code>.</p>
+  <nav class="nav" id="nav">
+    <a href="#editor">1. Sửa tap-hold</a>
+    <a href="#fn">2. Sửa Fn + phím</a>
+    <a href="#build">3. Đang dựng + kiểm thử</a>
+    <a href="#result">4. Kiểm thử đạt</a>
+    <a href="#fail">5. Kiểm thử không đạt</a>
+    <a href="#flash">6. Nạp: chờ trình cập nhật</a>
+    <a href="#flashed">7. Nạp xong, đã kiểm</a>
+    <span class="sp"></span>
+    <button id="accent" type="button">Màu: mới</button>
+    <button id="theme" type="button">Sáng / Tối</button>
+  </nav>
+
+  <div class="palette">Màu nhấn: <span><i style="background:var(--c-l1)"></i>Layer 1</span><span><i style="background:var(--c-l2)"></i>Layer 2</span><span><i style="background:var(--c-l3)"></i>Layer 3</span><span><i style="background:var(--c-l4)"></i>Layer 4</span><span><i style="background:var(--c-fw)"></i>Firmware</span><span><i style="background:var(--warn)"></i>Cảnh báo</span><span><i style="background:var(--bad)"></i>Lỗi</span></div>
+  <div class="app" id="app">
+    <div class="top">
+      <div class="brand"><b>Keyboard Layer Editor</b> · Không chính thức, cho bàn phím FILCO dùng FILCO Assist</div>
+      <div class="row1">
+        <h2>Majestouch Xacro M10SP US</h2><span class="conn">đã kết nối · REV 0x0072</span>
+        <span class="sp"></span>
+        <button class="btn">Đọc lại</button><button class="btn">Thêm &#8964;</button>
+      </div>
+      <div class="row2">
+        <span class="tab"><i style="background:#fff;border:1px solid var(--line)"></i>Layer 1</span>
+        <span class="tab"><i style="background:#2f63b0"></i>Layer 2</span>
+        <span class="tab"><i style="background:#3bb26b"></i>Layer 3</span>
+        <span class="tab"><i style="background:#8f63d6"></i>Layer 4</span>
+        <span class="vsep"></span>
+        <span class="tab fw"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="10" height="10" rx="1.5"/><path d="M6 1v2M10 1v2M6 13v2M10 13v2M1 6h2M1 10h2M13 6h2M13 10h2"/></svg>Firmware <span class="count">2</span></span>
+        <span style="flex:1"></span>
+        <button class="btn ghost">Hoàn tác</button><button class="btn ghost">Làm lại</button><button class="btn ghost">Bỏ mọi thay đổi</button>
+        <button class="btn primary">Dựng và kiểm thử</button>
+      </div>
+    </div>
+    <div class="banner">
+      <b>Firmware trên bàn phím</b><span>HJKL_CapsSpace2_Info</span><span class="mono">CheckSum 0x1321</span>
+      <span class="sp"></span>
+      <span>Bản nháp có 2 thay đổi. Chỉ có tác dụng sau khi dựng, kiểm thử trên giả lập và nạp bằng trình cập nhật.</span>
+    </div>
+    <div class="board"><svg id="kbd" preserveAspectRatio="xMidYMid meet"></svg></div>
+    <div class="insp" id="insp"></div>
+
+    <div class="scrim" id="scrim">
+      <!-- 3. build running -->
+      <div class="dlg" id="d-build">
+        <h4>Dựng và kiểm thử firmware</h4>
+        <div class="field"><span class="flabel">Tên bản build</span><span class="input">HJKL_CapsSpace2_Info_2</span>
+          <span class="hint">chữ, số, _ hoặc -, tối đa 32</span></div>
+        <div class="field"><span class="flabel">Từ</span><span>V72 gốc (kèm bộ cài, đã kiểm SHA-256) + bản nháp, có khối thông tin để ứng dụng đọc lại</span></div>
+        <div class="bar"><i></i></div>
+        <ul class="steps">
+          <li><span class="s ok">&#10003;</span><span>Dựng ảnh từ V72 gốc</span><span class="r">974 byte đổi · CheckSum 0x2A7C</span></li>
+          <li><span class="s ok">&#10003;</span><span>So từng phím với bản gốc, thường và kèm Fn</span><span class="r">82/82</span></li>
+          <li><span class="s ok">&#10003;</span><span>Đổi layer bằng Fn + Alt + số, lớp Fn qua M10</span><span class="r">13/13</span></li>
+          <li class="cur"><span class="s run">&#9675;</span><span>Tap-hold: Caps Lock, Space trái, Space phải</span><span class="r">21/38 kịch bản</span></li>
+          <li><span class="s wait">&#9675;</span><span>Lệnh 0x30 qua HID giả</span><span class="r"></span></li>
+          <li><span class="s wait">&#9675;</span><span>Độ sâu stack, từng điểm vào</span><span class="r"></span></li>
+          <li><span class="s wait">&#9675;</span><span>Dựng trình cập nhật (chỉ khi mọi bước trên đạt)</span><span class="r"></span></li>
+        </ul>
+        <div class="acts"><button class="btn">Hủy</button></div>
+      </div>
+      <!-- 4. pass -->
+      <div class="dlg" id="d-result">
+        <h4>Dựng và kiểm thử firmware</h4>
+        <div class="verdict ok"><div><div class="big">Đạt mọi kiểm thử (137/137)</div>
+          <div class="hint">HJKL_CapsSpace2_Info_2 · 3,4 giây · bàn phím chưa bị đụng tới</div></div>
+          <div class="tag">CheckSum<b>0x2A7C</b></div></div>
+        <ul class="steps">
+          <li><span class="s ok">&#10003;</span><span>Ảnh firmware</span><span class="r">974 byte đổi so với V72</span></li>
+          <li><span class="s ok">&#10003;</span><span>Từng phím, Fn, đổi layer, lớp Fn qua M10</span><span class="r">95/95</span></li>
+          <li><span class="s ok">&#10003;</span><span>Tap-hold (3 phím)</span><span class="r">38/38</span></li>
+          <li><span class="s ok">&#10003;</span><span>Lệnh 0x30: khối nói đúng cấu hình</span><span class="r">11/11</span></li>
+          <li><span class="s ok">&#10003;</span><span>Stack: không điểm vào nào sâu hơn bản gốc</span><span class="r">9/9 · giữ 48 byte</span></li>
+          <li><span class="s ok">&#10003;</span><span>Trình cập nhật</span><span class="r">M10SP_72US_V72_HJKL_CapsSpace2_Info_2.exe</span></li>
+        </ul>
+        <details><summary class="hint">Báo cáo đầy đủ (TEST_REPORT.txt)</summary><div class="rep">Tap-hold Space#76: tap = Space, hold = layer 4, term 250 ms ...
+  Space#76 tapped 40 ms                        Spacev Space^                      OK
+  Space#76 held 220 ms                         Spacev Space^                      OK
+  Space#76 held 280 ms alone                                                      OK</div></details>
+        <div class="acts"><button class="btn">Mở thư mục</button><button class="btn">Đóng</button><button class="btn primary">Nạp lên bàn phím...</button></div>
+      </div>
+      <!-- 5. fail -->
+      <div class="dlg" id="d-fail">
+        <h4>Dựng và kiểm thử firmware</h4>
+        <div class="verdict bad"><div><div class="big">1 kiểm thử không đạt: không dựng trình cập nhật</div>
+          <div class="hint">Không có gì để nạp. Bàn phím chưa bị đụng tới.</div></div></div>
+        <div class="rep">Every key, plain and with Fn (stock Fn = Fn, new Fn = Fn):
+<span class="f">  Fn + U                             got PageUp     expected Delete     FAIL</span>
+  82 keys compared; lines above are the configured keys and any failure</div>
+        <p class="hint" style="margin:0">Dòng FAIL là chỗ firmware dựng ra khác với điều cấu hình nói. Đây là lỗi của công cụ, không phải của
+        bạn: giữ lại thư mục kết quả và báo lại. Ví dụ trên là giả định để thấy giao diện.</p>
+        <div class="acts"><button class="btn">Mở thư mục</button><button class="btn">Xem báo cáo đầy đủ</button><button class="btn">Đóng</button></div>
+      </div>
+      <!-- 6. flash, waiting -->
+      <div class="dlg" id="d-flash">
+        <h4>Nạp HJKL_CapsSpace2_Info_2 lên bàn phím</h4>
+        <div class="stepper"><div class="done">1. Sao lưu 4 layer &#10003;</div><div class="done">2. FILCO Assist đã đóng &#10003;</div>
+          <div class="cur">3. Chạy trình cập nhật</div><div>4. Kiểm sau khi nạp</div></div>
+        <div class="checksum"><div class="v">0x2A7C</div><p>Trình cập nhật phải hiện <b>CheckSum : 0x2A7C</b>. Đúng thì bấm Start.
+          Khác thì đóng nó lại, đừng bấm. Ứng dụng không bấm Start thay bạn.</p></div>
+        <ul class="list">
+          <li>Bản sao lưu: <code>2026-11-01_1432_truoc-nap</code> (4 layer). Trình cập nhật không ghi vùng layer, sao lưu để chắc.</li>
+          <li>Trong lúc nạp bàn phím sẽ ngắt kết nối và cắm lại. Nếu kẹt, trình cập nhật vẫn nhận nó ở chế độ nạp (0C45:7040).</li>
+        </ul>
+        <div class="wait">Đang chờ bàn phím ngắt kết nối và cắm lại...</div>
+        <div class="acts"><button class="btn">Mở thư mục</button><button class="btn">Hủy</button><button class="btn primary">Mở trình cập nhật</button></div>
+      </div>
+      <!-- 7. flashed -->
+      <div class="dlg" id="d-flashed">
+        <h4>Nạp HJKL_CapsSpace2_Info_2 lên bàn phím</h4>
+        <div class="stepper"><div class="done">1. Sao lưu 4 layer &#10003;</div><div class="done">2. FILCO Assist đã đóng &#10003;</div>
+          <div class="done">3. Chạy trình cập nhật &#10003;</div><div class="done">4. Kiểm sau khi nạp &#10003;</div></div>
+        <div class="verdict ok"><div><div class="big">Bàn phím đang chạy đúng bản vừa dựng</div>
+          <div class="hint">Đọc lại sau khi cắm lại, chỉ đọc (0x10, 0x02, 0x30)</div></div><div class="tag">CheckSum<b>0x2A7C</b></div></div>
+        <ul class="steps">
+          <li><span class="s ok">&#10003;</span><span>Khối thông tin: tên HJKL_CapsSpace2_Info_2, nội dung khớp bản nháp</span><span class="r"></span></li>
+          <li><span class="s ok">&#10003;</span><span>4 layer giống bản sao lưu trước khi nạp</span><span class="r">4/4 SHA-256</span></li>
+        </ul>
+        <p class="hint" style="margin:0">Nếu layer khác bản sao lưu, chỗ này đổi thành cảnh báo kèm nút "Khôi phục từ bản sao lưu" (luồng ghi
+        sẵn có). Nếu khối thông tin khác, cảnh báo và gợi ý nạp lại.</p>
+        <div class="acts"><button class="btn primary">Xong</button></div>
+      </div>
+    </div>
+  </div>
+  <p class="caption" id="cap"></p>
+</div>
+
+<script>
+const KEYS = [["Esc",0,0,0,1,"Esc"],["1",8,1,0,1,"1"],["2",16,2,0,1,"2"],["3",24,3,0,1,"3"],["4",32,4,0,1,"4"],["5",40,5,0,1,"5"],["6",48,6,0,1,"6"],["M1",56,7,0,1,"M1"],["M6",64,8.9,0,1,"M6"],["7",1,9.9,0,1,"7"],["8",9,10.9,0,1,"8"],["9",17,11.9,0,1,"9"],["0",25,12.9,0,1,"0"],["-",33,13.9,0,1,"-"],["=",41,14.9,0,1,"="],["Bksp",49,15.9,0,2,"Backspace"],["Tab",2,0,1,1.5,"Tab"],["Q",10,1.5,1,1,"Q"],["W",18,2.5,1,1,"W"],["E",26,3.5,1,1,"E"],["R",34,4.5,1,1,"R"],["T",42,5.5,1,1,"T"],["M2",57,6.5,1,1,"M2"],["M7",65,8.4,1,1,"M7"],["Y",50,9.4,1,1,"Y"],["U",3,10.4,1,1,"U"],["I",11,11.4,1,1,"I"],["O",19,12.4,1,1,"O"],["P",27,13.4,1,1,"P"],["[",35,14.4,1,1,"["],["]",43,15.4,1,1,"]"],["\\",51,16.4,1,1.5,"\\"],["Caps",4,0,2,1.75,"Caps Lock"],["A",12,1.75,2,1,"A"],["S",20,2.75,2,1,"S"],["D",28,3.75,2,1,"D"],["F",36,4.75,2,1,"F"],["G",44,5.75,2,1,"G"],["M3",58,6.75,2,1,"M3"],["M8",66,8.65,2,1,"M8"],["H",52,9.65,2,1,"H"],["J",5,10.65,2,1,"J"],["K",13,11.65,2,1,"K"],["L",21,12.65,2,1,"L"],[";",29,13.65,2,1,";"],["'",37,14.65,2,1,"'"],["Enter",45,15.65,2,2.25,"Enter"],["LShift",6,0,3,2.25,"Shift"],["Z",14,2.25,3,1,"Z"],["X",22,3.25,3,1,"X"],["C",30,4.25,3,1,"C"],["V",38,5.25,3,1,"V"],["B",46,6.25,3,1,"B"],["M4",60,7.25,3,1,"M4"],["M9",68,9.15,3,1,"M9"],["N",54,10.15,3,1,"N"],["M",7,11.15,3,1,"M"],[",",15,12.15,3,1,","],[".",23,13.15,3,1,"."],["/",31,14.15,3,1,"/"],["RShift",39,15.15,3,2.75,"Shift"],["LCtrl",71,0,4,1.25,"Ctrl"],["LWin",82,1.25,4,1.25,"Win"],["LAlt",83,2.5,4,1.25,"Alt"],["SpaceL",77,3.75,4,3.125,"Space"],["M5",62,6.875,4,1,"M5"],["M10",70,8.775,4,1,"M10"],["SpaceR",76,9.775,4,3.125,"Space"],["RAlt",78,12.9,4,1.25,"Alt"],["RWin",79,14.15,4,1.25,"Win"],["Fn",73,15.4,4,1.25,"Fn"],["RCtrl",69,16.65,4,1.25,"Ctrl"]];
+// Fn + key of the V72 stock tables (QWERTY), by key id; "mine" = changed by the build on the keyboard or the draft.
+// Firmware-internal codes are drawn as the icons of the manual's Fn layer diagram (page 10): 0xF7-0xFE mouse,
+// 0xB5/0xBA/0xB9 mute / volume down / volume up, Menu. "@name" = icon. W, R, X, C only have Fn in the mouse-mode
+// bitmap (DIP 10 OFF, the default).
+const FN = {"Esc":"`","7":"F7","Tab":"Caps","M":"@voldown","1":"F1","8":"F8",",":"@volup","2":"F2","9":"F9","O":"PrtSc",
+  "S":"@mleft",".":"End","3":"F3","0":"F10","E":"@mup","P":"ScrLk","D":"@mdown",";":"Home","/":"PgDn",
+  "4":"F4","-":"F11","[":"Pause","F":"@mright","'":"PgUp","5":"F5","=":"F12","]":"Ins","6":"F6","\\":"Del",
+  "N":"@mute","RWin":"@menu","W":"@lclick","R":"@rclick","X":"@wheelup","C":"@wheeldown"};
+// Icons in a 20 x 16 box centred on 0,0, stroked in currentColor.
+const MOUSE = (x) => `<rect x="${x - 3.5}" y="-6" width="7" height="12" rx="3.5"/><path d="M${x - 3.5} -1.5H${x + 3.5}M${x} -6V-1.5"/>`;
+const SPEAKER = `<path class="solid" d="M-7 -2.2H-4.6L-1 -5.6V5.6L-4.6 2.2H-7Z"/>`;
+const ICONS = {
+  lclick: MOUSE(0) + `<path class="solid" d="M0 -6A3.5 3.5 0 0 0 -3.5 -2.5V-1.5H0Z"/>`,
+  rclick: MOUSE(0) + `<path class="solid" d="M0 -6A3.5 3.5 0 0 1 3.5 -2.5V-1.5H0Z"/>`,
+  mup: MOUSE(-2.5) + `<path d="M5 3.5V-4M3 -2L5 -4L7 -2"/>`,
+  mdown: MOUSE(-2.5) + `<path d="M5 -3.5V4M3 2L5 4L7 2"/>`,
+  mleft: MOUSE(3) + `<path d="M-2.5 0H-9M-7 -2L-9 0L-7 2"/>`,
+  mright: MOUSE(-3) + `<path d="M2.5 0H9M7 -2L9 0L7 2"/>`,
+  wheelup: MOUSE(-2) + `<path class="solid" d="M-2.8 -5H-1.2V-2.5H-2.8Z"/><path d="M4 -1C5.2 -2.4 5.2 -4.6 4 -6M3 -5.5L4 -6.5L5 -5.4"/>`,
+  wheeldown: MOUSE(-2) + `<path class="solid" d="M-2.8 -5H-1.2V-2.5H-2.8Z"/><path d="M4 -5C5.2 -3.6 5.2 -1.4 4 0M3 -0.6L4 0.5L5 -0.5"/>`,
+  mute: SPEAKER + `<path d="M2.5 -2.5L7 2M7 -2.5L2.5 2"/>`,
+  voldown: SPEAKER + `<path d="M1.5 -2.5A3.5 3.5 0 0 1 1.5 2.5"/>`,
+  volup: SPEAKER + `<path d="M1.5 -2.5A3.5 3.5 0 0 1 1.5 2.5M3.8 -5A7 7 0 0 1 3.8 5"/>`,
+  menu: `<rect x="-5.5" y="-6" width="11" height="12" rx="1"/><path d="M-3 -2.8H3M-3 0H3M-3 2.8H3"/>`
+};
+const PICK_ICONS = [["lclick", "Chuột: nhấp trái (0xF7)"], ["rclick", "Chuột: nhấp phải (0xF8)"], ["mup", "Chuột: di lên (0xFB)"],
+  ["mdown", "Chuột: di xuống (0xFC)"], ["mleft", "Chuột: di sang trái (0xF9)"], ["mright", "Chuột: di sang phải (0xFA)"],
+  ["wheelup", "Chuột: cuộn lên (0xFD)"], ["wheeldown", "Chuột: cuộn xuống (0xFE)"], ["mute", "Tắt âm (0xB5)"],
+  ["voldown", "Giảm âm lượng (0xBA)"], ["volup", "Tăng âm lượng (0xB9)"]];
+const icon = (name, mine) => `<g class="ic ${mine ? "mine" : ""}">${ICONS[name]}</g>`;
+const MINE = {"H":"\u2190","J":"\u2193","K":"\u2191","L":"\u2192"};          // on the keyboard (HJKL_CapsSpace2_Info)
+const DRAFT = {"U":"PgUp"};                                                   // pending in the draft
+const REMOVED = new Set(["I"]);                                                // Fn function removed ("none")
+const TAPHOLD = {"Caps":["Ctrl","Esc"],"SpaceL":["\u2192 L3","Space"],"SpaceR":["\u2192 L4","Space"]};
+const PENDING = new Set(["U","SpaceR"]);
+const U = 64, PAD = 6;
+
+function fit(text, w, max) { return Math.min(max, (w - 6) / Math.max(1, [...text].length) / 0.55); }
+
+function drawKeyboard(selected) {
+  const svg = document.getElementById("kbd");
+  const W = Math.max(...KEYS.map(k => k[2] + k[4])) * U + 2 * PAD, H = 5 * U + 2 * PAD;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  let out = "";
+  for (const [id, idx, kx, ky, kw, legend] of KEYS) {
+    const x = PAD + kx * U, y = PAD + ky * U, w = kw * U, h = U;
+    const ix = x + 8, iy = y + 6, iw = w - 16, ih = h - 18, cx = ix + iw / 2, cy = iy + ih / 2;
+    const th = TAPHOLD[id];
+    const fnMine = MINE[id] || DRAFT[id];
+    const custom = th || fnMine || REMOVED.has(id);
+    const cls = ["key", /^M\d/.test(id) ? "mkey" : "", custom ? "custom" : "", th ? "taphold" : "", selected === id ? "selected" : ""].join(" ");
+    out += `<g class="${cls}"><rect class="outer" x="${x}" y="${y}" width="${w}" height="${h}" rx="7"/>` +
+           `<rect class="inner" x="${ix}" y="${iy}" width="${iw}" height="${ih}" rx="5"/>`;
+    if (th) {
+      out += `<text x="${cx}" y="${cy - 10}" class="lg-hold" font-size="9.5" text-anchor="middle" dominant-baseline="central">${th[0]}</text>`;
+      out += `<text x="${cx}" y="${cy + 5}" class="lg-main" font-size="13" text-anchor="middle" dominant-baseline="central">${th[1]}</text>`;
+    } else {
+      // Firmware mode reads as "Fn + this key": the Fn function is the main legend, the key itself is the small
+      // legend on top. A key without an Fn function (or with it removed) keeps the centre empty.
+      const fn = REMOVED.has(id) ? "" : fnMine || FN[id] || "";
+      out += `<text x="${cx}" y="${cy - 10}" class="lg-fn" font-size="${fit(legend, iw, 9.5)}" text-anchor="middle" dominant-baseline="central">${legend}</text>`;
+      if (fn.startsWith("@")) out += `<g transform="translate(${cx} ${cy + 5}) scale(1.35)">${icon(fn.slice(1), !!fnMine)}</g>`;
+      else if (fn) out += `<text x="${cx}" y="${cy + 5}" class="lg-main ${fnMine ? "mine" : ""}" font-size="${[...fn].length === 1 && /[^\w`'\-=;,./\\\[\]]/.test(fn) ? 16 : Math.min(13, fit(fn, iw, 13))}" text-anchor="middle" dominant-baseline="central">${fn}</text>`;
+    }
+    if (PENDING.has(id)) out += `<circle class="dot" cx="${x + w - 7}" cy="${y + 7}" r="3.2"/>`;
+    out += "</g>";
+  }
+  svg.innerHTML = out;
+}
+
+const INSP = {
+  taphold: `
+    <div class="ihead"><h3>Phím Caps Lock · chỉ số 4</h3><span class="sum">Tap-hold: gõ nhanh Esc, giữ Ctrl, 200 ms</span>
+      <span class="sp"></span><button class="btn">Về như trên bàn phím</button><button class="btn">Về V72 gốc</button></div>
+    <div class="ibody">
+      <div class="side"><div class="it on">Tap-hold <small>Esc / Ctrl</small></div><div class="it">Fn + phím <small>Caps (gốc)</small></div>
+        <div class="it">Mặc định <small>Caps Lock</small></div>
+        <div class="note">Fn + phím tap-hold vẫn giữ nghĩa gốc. Chế độ DIP đổi phím này thì tap-hold tự tắt.</div></div>
+      <div class="form">
+        <div class="frow"><span class="flabel">Kiểu</span><span class="seg"><span>Không</span><span class="on">Giữ = phím</span><span>Giữ = layer</span></span>
+          <span class="quota">Giữ = phím: <b>1/1</b> (phím này) · Giữ = layer: <b>2/2</b> (Space trái, Space phải)</span></div>
+        <div class="frow"><span class="flabel">Gõ nhanh</span><span class="chip">Esc</span>
+          <span class="flabel" style="width:auto;margin-left:14px">Giữ</span><span class="chip on">Ctrl</span>
+          <span class="hint">Bấm vào ô để chọn bằng bảng phím bên dưới</span></div>
+        <div class="frow"><span class="flabel">Ngưỡng</span><input class="slider" type="range" min="50" max="255" value="200"><span class="num">200</span><span>ms</span>
+          <span class="hint">50-255 ms. Giữ quá ngưỡng, hoặc nhấn phím khác trong lúc giữ, là giữ.</span></div>
+        <div class="picker"><div class="grp">Modifier (cho "Giữ")</div>
+          <div class="grid"><span class="on">Ctrl</span><span>Shift</span><span>Alt</span><span>Win</span><span>Ctrl phải</span><span>Shift phải</span><span>Alt phải</span><span>Win phải</span></div></div>
+      </div>
+    </div>`,
+  fn: `
+    <div class="ihead"><h3>Phím U · chỉ số 3</h3><span class="sum">Fn + U = <b style="color:var(--acc)">PgUp</b> (mới, chưa dựng)</span>
+      <span class="sp"></span><button class="btn">Về như trên bàn phím</button><button class="btn">Về V72 gốc</button></div>
+    <div class="ibody">
+      <div class="side"><div class="it">Tap-hold <small>không</small></div><div class="it on">Fn + phím <small>PgUp</small></div>
+        <div class="it">Mặc định <small>U</small></div>
+        <div class="note">Fn2 (Alt trái do DIP) và M10 = Fn dùng cùng lớp Fn này.</div></div>
+      <div class="form">
+        <div class="frow"><span class="flabel">Fn + U</span><span class="chip on">PgUp</span><button class="btn">Bỏ chức năng Fn</button>
+          <span class="quota">Ô Fn: <b>36/39</b> đã dùng (thêm phím mới dùng một ô; "Bỏ" trả lại ô)</span></div>
+        <div class="picker"><div class="frow"><span class="search">Tìm phím</span></div>
+          <div class="grp">Điều hướng</div>
+          <div class="grid"><span>Ins</span><span>Home</span><span class="on">PgUp</span><span>Del</span><span>End</span><span>PgDn</span><span>&#8592;</span><span>&#8593;</span><span>&#8595;</span><span>&#8594;</span></div>
+          <div class="grp">Chuột và âm lượng (mã riêng của firmware, biểu tượng theo manual; rê chuột để xem tên)</div>
+          <div class="grid">${PICK_ICONS.map(([n, t]) => `<span title="${t}"><svg viewBox="-10 -8 20 16">${icon(n)}</svg></span>`).join("")}</div>
+          <div class="grp">Phím F</div>
+          <div class="grid"><span>F1</span><span>F2</span><span>F3</span><span>F4</span><span>F5</span><span>F6</span><span>F7</span><span>F8</span><span>F9</span><span>F10</span><span>F11</span><span>F12</span></div>
+        </div>
+      </div>
+    </div>`
+};
+
+const SCREENS = {
+  editor: {sel: "Caps", insp: "taphold", dlg: null, cap: "<b>Chế độ Firmware.</b> Thẻ \"Firmware\" nằm sau 4 layer, tách bằng một vạch, màu nhấn riêng (xanh da trời; Layer 2 đổi sang màu mận để màu xanh chỉ thuộc về Firmware). Bàn phím vẽ bản nháp firmware theo nghĩa \"Fn + phím\": chữ to ở giữa là chức năng Fn (màu mực = như V72 gốc, màu nhấn = đã đổi), chữ nhỏ phía trên là phím đó; phím không có chức năng Fn để trống ở giữa. Phím tap-hold vẽ như thiết kế đã duyệt, chấm = thay đổi chưa dựng. Inspector có 3 mục: Tap-hold, Fn + phím, Mặc định. Nút chính đổi từ \"Ghi\" thành \"Dựng và kiểm thử\"; không có gì gửi xuống bàn phím ở màn này."},
+  fn: {sel: "U", insp: "fn", dlg: null, cap: "<b>Fn + phím.</b> Cùng bảng chọn phím như layer nhưng chỉ có mã bàn phím (firmware chỉ lưu một mã HID). Hiện số ô Fn còn trống (39 ô). \"Bỏ chức năng Fn\" ứng với giá trị \"none\" của cấu hình. Phím I trên hình là ví dụ đã bỏ: giữa để trống, viền màu nhấn vì khác bản trên bàn phím."},
+  build: {sel: "Caps", insp: "taphold", dlg: "d-build", cap: "<b>Dựng và kiểm thử.</b> Một hộp thoại: tên bản build (gợi ý sẵn), rồi các bước chạy trên giả lập với số đếm thật từ báo cáo. Khoảng 3-4 giây. Khối thông tin luôn được thêm (để ứng dụng đọc lại và kiểm sau khi nạp)."},
+  result: {sel: "Caps", insp: "taphold", dlg: "d-result", cap: "<b>Đạt.</b> CheckSum in to, vì người dùng phải so nó trong trình cập nhật. Báo cáo đầy đủ mở được tại chỗ. \"Nạp lên bàn phím...\" chỉ bật cho bản vừa đạt kiểm thử trong phiên này và khi bản nháp chưa đổi sau đó."},
+  fail: {sel: "Caps", insp: "taphold", dlg: "d-fail", cap: "<b>Không đạt.</b> Không có trình cập nhật nên không có đường nạp. Hiện đúng các dòng FAIL của báo cáo."},
+  flash: {sel: "Caps", insp: "taphold", dlg: "d-flash", cap: "<b>Nạp.</b> Bước 1-2 ứng dụng tự làm (sao lưu 4 layer, kiểm FILCO Assist đã đóng). Bước 3: nút \"Mở trình cập nhật\" chỉ chạy khi người dùng bấm, ứng dụng không bấm Start và không điều khiển cửa sổ đó. Ứng dụng chờ bàn phím ngắt và cắm lại."},
+  flashed: {sel: "Caps", insp: "taphold", dlg: "d-flashed", cap: "<b>Kiểm sau khi nạp.</b> Tự chạy khi bàn phím cắm lại: đọc khối thông tin (tên và nội dung phải khớp bản vừa dựng), đọc 4 layer so với bản sao lưu. Chỉ đọc."}
+};
+
+function show() {
+  const name = (location.hash || "#editor").slice(1);
+  const s = SCREENS[name] || SCREENS.editor;
+  drawKeyboard(s.sel);
+  document.getElementById("insp").innerHTML = INSP[s.insp];
+  document.getElementById("scrim").classList.toggle("show", !!s.dlg);
+  for (const d of document.querySelectorAll(".dlg")) d.classList.toggle("show", d.id === s.dlg);
+  for (const a of document.querySelectorAll("#nav a")) a.toggleAttribute("aria-current", a.getAttribute("href") === "#" + (SCREENS[name] ? name : "editor"));
+  for (const a of document.querySelectorAll("#nav a[aria-current]")) a.setAttribute("aria-current", "page");
+  document.getElementById("cap").innerHTML = s.cap;
+}
+document.getElementById("accent").addEventListener("click", (e) => {
+  const r = document.documentElement;
+  const old = r.dataset.accent !== "old";
+  if (old) r.dataset.accent = "old"; else delete r.dataset.accent;
+  e.currentTarget.textContent = old ? "Màu: cũ" : "Màu: mới";
+});
+document.getElementById("theme").addEventListener("click", () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === "dark" ? "light" : "dark";
+});
+window.addEventListener("hashchange", show);
+show();
+</script>
+</body>
+</html>
