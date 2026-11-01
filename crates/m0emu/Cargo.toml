@@ -1,0 +1,13 @@
+[package]
+name = "m0emu"
+description = "Cortex-M0 (ARMv6-M Thumb) interpreter in pure Rust: flash, RAM and peripheral memory, read and code hooks; stops at anything it does not model"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+thumb = { path = "../thumb" }

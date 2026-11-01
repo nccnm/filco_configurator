@@ -3,6 +3,18 @@
 Nhánh `feat/initial-app` (chưa merge vào `main`, không có remote, chưa push). Bản giao việc: `docs/BRIEF.md`; kế hoạch
 đã duyệt: `docs/PLAN.md` (bản HTML `docs/plan.html`); các quyết định phát sinh: `docs/DECISIONS.md` (D1-D19).
 
+## Cập nhật (2026-11-01): dựng firmware tùy biến bằng Rust (task 12.9, phần A-D)
+
+Nhánh `feat/firmware-build` (tách từ `main` d8e5792). Task hoãn ở `docs/DEFERRED_FIRMWARE_BUILD.md` đã làm phần A-D:
+crate `thumb`, `filco-firmware`, `m0emu`, `filco-fwtest`, `filco-updater`, `filco-fwbuild` và lệnh
+`filco-cli firmware-build`. Cả 5 bản golden ra giống từng byte (ảnh, HEX, tag, PATCH_DIFF) và TEST_REPORT giống
+từng dòng báo cáo Unicorn. Trình cập nhật khớp golden ở từng mục ZIP; chi tiết và một khác biệt có chủ ý ở mục
+"Trạng thái" của tài liệu đó. Một lần dựng + kiểm thử: 3,4 giây (ngân sách 15 giây).
+
+Kiểm đã chạy: `cargo fmt --check`, `cargo clippy --workspace --all-targets -D warnings`, `cargo test --workspace`
+(mọi test đạt), `cargo deny check licenses bans sources`, `scripts/check-text.ps1`. Không gửi gì xuống bàn phím, không
+chạy trình cập nhật. Chưa làm: tích hợp vào service / IPC / UI (trang "Firmware"), cần duyệt thiết kế giao diện.
+
 ## Cập nhật giai đoạn 2 (2026-11-01): đọc + hiển thị cấu hình firmware
 
 Nhánh `feat/firmware`. Phạm vi giai đoạn 2 tách làm hai (PLAN.md mục 12): phần **đọc + hiển thị** làm trong repo này,

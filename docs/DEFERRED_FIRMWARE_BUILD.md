@@ -1,5 +1,50 @@
 # Task hoãn: dựng ảnh firmware tùy biến trong ứng dụng
 
+## Trạng thái (2026-11-01): phần A-D xong, chưa tích hợp vào giao diện
+
+Nhánh `feat/firmware-build`. Bốn phần A-D đã port sang Rust và đạt tiêu chí so với golden. Việc dựng firmware giờ
+chạy hoàn toàn trong Rust, không cần Python, Keystone hay Unicorn:
+
+| Phần | Crate | Kết quả so với golden |
+|---|---|---|
+| A | `filco-firmware` (HEX, bảng V72, cấu hình TOML, nhật ký vá) | 5/5 bản: `image.bin`, `.hex` (tên và nội dung, tức tag), `PATCH_DIFF.txt` giống từng byte |
+| B | `thumb` (assembler + decoder ARMv6-M) + `filco-firmware::taphold` / `info` | Code tap-hold và code lệnh 0x30 ra đúng từng byte như Keystone; 4 bản có code đạt như trên |
+| C | `m0emu` (trình thông dịch Cortex-M0) + `filco-fwtest` (kịch bản, máy HID giả, độ sâu stack) | 5/5 bản: `TEST_REPORT.txt` giống **từng dòng** báo cáo Unicorn; mỗi bản dưới 4 giây (bản debug có tối ưu cho trình giả lập), 3,4 giây cả pipeline ở release |
+| D | `filco-updater` (ZIP trong RT_RCDATA 4011) | Xem ghi chú dưới |
+| Pipeline | `filco-fwbuild` (`build.py` `main()`) + `filco-cli firmware-build` | Cả `TEST_REPORT.txt` (gồm các dòng của trình cập nhật) giống golden, trừ các dòng in đường dẫn máy |
+
+Ghi chú phần D: trình cập nhật mà `isp_exe.py` dựng nén lại **mọi** mục của ZIP bằng deflate trong bản Python đang
+dùng (Python 3.14 kèm zlib-ng). Byte nén vì thế phụ thuộc thư viện nén, không phụ thuộc dữ liệu. Bản Rust giữ nguyên
+byte nén gốc của các mục không đổi (chép thẳng từ trình cập nhật chính hãng), và chỉ nén hai mục thay đổi (HEX và
+`UISettings.ini`, deflate mức 6 qua zlib-rs). Hai mục này ra giống từng byte bản golden. Test chứng minh:
+
+- bộ ghi ZIP giống hệt `zipfile` của Python: đọc ZIP golden rồi ghi lại ra đúng từng byte;
+- ZIP dựng ra khớp golden ở từng mục: tên (kể cả cách `zipfile` đổi CP437 sang UTF-8 và `\` sang `/`), phương thức
+  nén, ngày giờ, CRC, kích thước, dữ liệu sau giải nén;
+- byte nén của HEX và `UISettings.ini` giống golden, còn byte nén của các mục khác giống bản chính hãng;
+- các tài nguyên RCDATA khác (4007, 4008, 4009, 4012, 4013) giống golden.
+
+Vì vậy file exe khác golden ở kích thước (1 933 824 so với 1 935 360 byte) nhưng chứa đúng cùng nội dung.
+
+Kiểm thử âm tính: sửa một byte bảng Fn sau khi dựng, hoặc đặt sai kỳ vọng tap-hold, thì kiểm thử báo FAIL
+(`crates/filco-fwtest/tests/broken.rs`). Lỗi cấu hình dừng trước khi ghi file nào.
+
+Lệnh (offline, không mở bàn phím, không chạy trình cập nhật):
+
+```powershell
+cargo run --release -p filco-cli -- firmware-build <config.toml> [--stock firmware] [--out out]
+```
+
+Kết quả ở `out/<name>/`: HEX (tên mang tag), `image.bin`, `PATCH_DIFF.txt`, `TEST_REPORT.txt`, và
+`M10SP_72US_V72_<name>.exe` chỉ khi mọi kiểm thử đạt.
+
+Còn lại: mục "Tích hợp vào ứng dụng" ở cuối tài liệu (phiên dựng firmware trong `filco-service`, lệnh IPC, trang
+"Firmware" trong UI, luồng an toàn khi nạp). Phần giao diện cần người dùng duyệt thiết kế trước.
+
+---
+
+Phần dưới là đặc tả gốc của task, giữ nguyên.
+
 Tài liệu này mô tả một task **chưa làm**. Nó tách khỏi giai đoạn 2 phần "đọc + hiển thị" (PLAN.md mục 12.1-12.8).
 Khi nào làm task này thì đọc kỹ cả tài liệu này lẫn các nguồn tham khảo được trỏ tới trước khi viết dòng code đầu tiên.
 

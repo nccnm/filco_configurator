@@ -28,3 +28,13 @@ lto = true
 opt-level = "s"
 panic = "abort"
 strip = true
+
+# The emulator runs some hundred million instructions per firmware test; unoptimised it would take minutes.
+[profile.dev.package.m0emu]
+opt-level = 3
+
+[profile.dev.package.thumb]
+opt-level = 3
+
+[profile.dev.package.filco-fwtest]
+opt-level = 3

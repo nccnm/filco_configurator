@@ -1,0 +1,17 @@
+[package]
+name = "filco-firmware"
+description = "Build a customised V72 image for the FILCO Majestouch Xacro M10SP US from stock: Intel HEX, Fn layer and keymap tables, tap-hold and info-command code"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+filco-fwinfo = { path = "../filco-fwinfo" }
+thumb = { path = "../thumb" }
+sha2 = "0.10.9"
+thiserror = "2.0.21"
+toml = { version = "1.1.8", features = ["preserve_order"] }

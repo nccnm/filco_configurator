@@ -1,0 +1,10 @@
+[package]
+name = "thumb"
+description = "ARMv6-M (Cortex-M0) Thumb: a small assembler for the firmware patches and a decoder for the emulator and the stack analysis"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true

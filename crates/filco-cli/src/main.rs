@@ -1,5 +1,5 @@
-//! Read-only developer tool. Nothing here can write a keyboard: every device is opened with
-//! `WritePolicy::ReadOnly`, which refuses any report other than the 0x10 / 0x02 commands of a page read.
+//! Developer tool. Nothing here can write a keyboard: every device is opened with `WritePolicy::ReadOnly`,
+//! which refuses any report other than the 0x10 / 0x02 commands of a page read. `firmware-build` works offline.
 //!
 //! ```text
 //! filco-cli list                                   HID interfaces of FILCO keyboards (no report sent)
@@ -8,6 +8,7 @@
 //! filco-cli measure-delays [--compare DIR]         read with shorter pauses, at most 50 page reads in total
 //! filco-cli decode DIR                             print the slots of a backup folder
 //! filco-cli validate-model FILE...                 check model descriptor files
+//! filco-cli firmware-build CONFIG [--stock DIR] [--out DIR]   build + test a V72 image, updater if all pass
 //! ```
 #![forbid(unsafe_code)]
 
@@ -36,10 +37,11 @@ fn main() -> ExitCode {
             .ok_or_else(|| "decode needs a folder".to_owned())
             .and_then(|d| decode(Path::new(d))),
         Some("validate-model") => validate(&args[1..]),
+        Some("firmware-build") => firmware_build(&args[1..]),
         _ => Err(include_str!("main.rs")
             .lines()
             .skip(4)
-            .take(8)
+            .take(9)
             .map(|l| l.trim_start_matches("//! "))
             .collect::<Vec<_>>()
             .join("\n")),
@@ -309,6 +311,32 @@ fn decode(dir: &Path) -> Res<()> {
         }
     }
     Ok(())
+}
+
+/// Builds and tests a custom V72 image from a TOML config (the format of the analysis repository's
+/// `custom.toml`). Offline: no keyboard is opened and the updater is never run.
+fn firmware_build(args: &[String]) -> Res<()> {
+    let config = args
+        .first()
+        .filter(|a| !a.starts_with("--"))
+        .ok_or("firmware-build needs a config file")?;
+    let stock = option(args, "--stock").unwrap_or("firmware");
+    let out = option(args, "--out").unwrap_or("out");
+    let t = Instant::now();
+    let o = filco_fwbuild::run(Path::new(stock), Path::new(config), Path::new(out), &mut |l| {
+        println!("{l}");
+    })
+    .map_err(|e| e.to_string())?;
+    eprintln!(
+        "built and tested in {:.1} s; results in {}",
+        t.elapsed().as_secs_f64(),
+        o.dir.display()
+    );
+    if o.passed {
+        Ok(())
+    } else {
+        Err("tests failed: no updater built".into())
+    }
 }
 
 fn validate(files: &[String]) -> Res<()> {

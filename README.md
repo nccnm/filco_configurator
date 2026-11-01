@@ -66,7 +66,16 @@ Nếu bàn phím đang chạy một bản firmware tùy biến có khối thông
 thay đổi đó: phím tap-hold vẽ hành động khi giữ (nhỏ, phía trên) và khi gõ nhanh (nhãn chính), phím "giữ để vào
 layer" được tô đậm trên layer đó, và inspector hiện chi tiết tap-hold cùng các thay đổi Fn + phím. Ô layer của phím
 tap-hold bị khóa vì firmware quyết định. Firmware gốc (hay bản vá cũ không có khối) trả NACK và ứng dụng chỉ không
-hiện phần này. Việc **dựng** firmware tùy biến chưa nằm trong ứng dụng (xem `docs/DEFERRED_FIRMWARE_BUILD.md`).
+hiện phần này. Việc **dựng** firmware tùy biến chạy bằng lệnh dòng lệnh (offline, không mở bàn phím, không chạy
+trình cập nhật), chưa có trong giao diện:
+
+```powershell
+cargo run --release -p filco-cli -- firmware-build <config.toml> [--stock firmware] [--out out]
+```
+
+Cấu hình là file TOML cùng định dạng `custom.toml` của repo phân tích (ví dụ trong `tests/fixtures/firmware/*/config.toml`).
+Kết quả ở `out/<name>/`; trình cập nhật chỉ được dựng khi mọi kiểm thử trên giả lập đạt, và người dùng tự chạy nó,
+kiểm dòng `CheckSum` đúng tag in ra rồi mới bấm Start. Chi tiết: `docs/DEFERRED_FIRMWARE_BUILD.md`.
 
 Bộ cài kèm sẵn firmware V72 gốc và trình cập nhật chính hãng (thư mục `firmware/`, có license, xem `firmware/README.md`)
 để nạp được trên máy khác mà không cần gì thêm.
@@ -158,7 +167,13 @@ Runtime của máy (đặt đường dẫn vào biến `MSEDGEDRIVER`, hoặc gi
 | `crates/filco-fwinfo` | giải mã khối thông tin firmware (lệnh 0x30), chỉ đọc |
 | `crates/filco-hid-windows` | HID thật trên Windows (chỗ duy nhất có `unsafe`) |
 | `crates/filco-service` | phiên sửa + undo, luồng ghi an toàn, kho sao lưu, journal, chặn FILCO Assist |
-| `crates/filco-cli` | công cụ dòng lệnh chỉ đọc cho dev (`list`, `caps`, `read`, `decode`, `validate-model`) |
+| `crates/filco-cli` | công cụ dòng lệnh cho dev: chỉ đọc bàn phím (`list`, `caps`, `read`, `decode`, `validate-model`); `firmware-build` dựng + kiểm firmware offline |
+| `crates/thumb` | assembler và decoder Thumb ARMv6-M (Cortex-M0) cho code chèn vào firmware |
+| `crates/filco-firmware` | dựng ảnh V72 tùy biến từ bản gốc: HEX, bảng Fn / keymap, code tap-hold, khối thông tin + lệnh 0x30 |
+| `crates/m0emu` | trình thông dịch Cortex-M0 thuần Rust, dừng ở lệnh chưa mô hình hóa |
+| `crates/filco-fwtest` | chạy firmware thật trong `m0emu`, so với bản gốc từng phím, tap-hold, 0x30 qua HID giả, độ sâu stack |
+| `crates/filco-updater` | dựng trình cập nhật từ bản chính hãng (ZIP trong tài nguyên RT_RCDATA 4011) |
+| `crates/filco-fwbuild` | luồng dựng: ảnh, HEX, kiểm thử, và chỉ khi mọi kiểm thử đạt mới dựng trình cập nhật |
 | `src-tauri` | ứng dụng: trạng thái, lệnh IPC mỏng, kiểu IPC sinh sang TypeScript |
 | `ui` | giao diện Svelte |
 | `models` | mô tả model JSON và schema |

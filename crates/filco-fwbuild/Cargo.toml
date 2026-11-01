@@ -1,0 +1,19 @@
+[package]
+name = "filco-fwbuild"
+description = "The firmware build pipeline: stock V72 + config -> image, HEX, patch log, emulator tests, and only when every test passes the updater"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+filco-firmware = { path = "../filco-firmware" }
+filco-fwtest = { path = "../filco-fwtest" }
+filco-updater = { path = "../filco-updater" }
+thiserror = "2.0.21"
+
+[dev-dependencies]
+tempfile = "3"

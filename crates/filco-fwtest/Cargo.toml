@@ -1,0 +1,16 @@
+[package]
+name = "filco-fwtest"
+description = "Test a built V72 image against stock in the m0emu Cortex-M0 interpreter: every key, Fn layer, layer switching, tap-hold timing, info command over HID, static stack depth"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+filco-firmware = { path = "../filco-firmware" }
+filco-fwinfo = { path = "../filco-fwinfo" }
+m0emu = { path = "../m0emu" }
+thumb = { path = "../thumb" }

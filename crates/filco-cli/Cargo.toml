@@ -1,6 +1,6 @@
 [package]
 name = "filco-cli"
-description = "Read-only command line tool for developers: list FILCO keyboards, read and compare layer pages, decode backups"
+description = "Developer command line tool: list FILCO keyboards, read and compare layer pages, decode backups (all read only), build and test a custom V72 firmware offline"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -18,3 +18,4 @@ filco-core = { path = "../filco-core" }
 filco-protocol = { path = "../filco-protocol" }
 filco-service = { path = "../filco-service" }
 filco-hid-windows = { path = "../filco-hid-windows" }
+filco-fwbuild = { path = "../filco-fwbuild" }

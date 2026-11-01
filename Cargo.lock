@@ -1022,6 +1022,7 @@ name = "filco-cli"
 version = "0.1.0"
 dependencies = [
  "filco-core",
+ "filco-fwbuild",
  "filco-hid-windows",
  "filco-protocol",
  "filco-service",
@@ -1042,11 +1043,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "filco-firmware"
+version = "0.1.0"
+dependencies = [
+ "filco-fwinfo",
+ "sha2",
+ "thiserror 2.0.21",
+ "thumb",
+ "toml 1.1.8+spec-1.1.0",
+]
+
+[[package]]
+name = "filco-fwbuild"
+version = "0.1.0"
+dependencies = [
+ "filco-firmware",
+ "filco-fwtest",
+ "filco-updater",
+ "tempfile",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "filco-fwinfo"
 version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "filco-fwtest"
+version = "0.1.0"
+dependencies = [
+ "filco-firmware",
+ "filco-fwinfo",
+ "m0emu",
+ "thumb",
 ]
 
 [[package]]
@@ -1093,6 +1126,15 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "filco-updater"
+version = "0.1.0"
+dependencies = [
+ "flate2",
+ "thiserror 2.0.21",
+ "windows",
 ]
 
 [[package]]
@@ -2191,6 +2233,13 @@ name = "log"
 version = "0.4.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
+
+[[package]]
+name = "m0emu"
+version = "0.1.0"
+dependencies = [
+ "thumb",
+]
 
 [[package]]
 name = "markup5ever"
@@ -4091,6 +4140,10 @@ dependencies = [
  "quote",
  "syn 3.0.9",
 ]
+
+[[package]]
+name = "thumb"
+version = "0.1.0"
 
 [[package]]
 name = "time"
