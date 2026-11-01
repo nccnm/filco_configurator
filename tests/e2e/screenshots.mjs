@@ -145,6 +145,16 @@ async function run(theme) {
     await sim(browser, "unplug");
     await waitIdle(browser);
     await shot(browser, theme, "16-unplugged");
+
+    // Firmware with a tap-hold config (info block over command 0x30): CapsLock and both Spaces are tap-hold.
+    await sim(browser, "info_on");
+    await sim(browser, "replug");
+    await waitState(browser, "ready");
+    await click(browser, "layer-2"); // layer 3: the left Space holds into it, so it is emphasised
+    await shot(browser, theme, "17-taphold-layer3");
+    await click(browser, "key-Caps");
+    await waitIdle(browser);
+    await shot(browser, theme, "18-taphold-inspector");
   } finally {
     await close();
   }

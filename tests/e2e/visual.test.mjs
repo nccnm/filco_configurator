@@ -7,7 +7,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
-import { byTest, click, openApp, ROOT, setTheme, waitIdle, waitState } from "./driver.mjs";
+import { byTest, click, openApp, ROOT, setTheme, sim, waitIdle, waitState } from "./driver.mjs";
 
 const BASE = path.join(ROOT, "tests", "e2e", "baseline");
 const OUT = path.join(ROOT, "tests", "e2e", "out");
@@ -112,6 +112,36 @@ describe("visual baselines", () => {
       await setTheme(browser, "light");
       await click(browser, "diff-cancel");
       await waitIdle(browser);
+    });
+  });
+
+  describe("firmware tap-hold (info block)", () => {
+    let app;
+    before(async () => {
+      app = await openApp();
+      await vietnamese(app.browser);
+      await waitState(app.browser, "ready");
+      // Flash the HJKL_CapsSpace2_Info config into the simulated keyboard, then reconnect so it is read.
+      await sim(app.browser, "info_on");
+      await sim(app.browser, "unplug");
+      await sim(app.browser, "replug");
+      await waitState(app.browser, "ready");
+    });
+    after(async () => app?.close());
+
+    it("tap-hold keys on the keyboard", async () => {
+      const { browser } = app;
+      await setTheme(browser, "light");
+      // Layer 3 (index 2): the left Space holds into this layer, so it is emphasised here.
+      await click(browser, "layer-2");
+      await check(browser, "taphold-layer3-light");
+    });
+
+    it("tap-hold detail in the inspector", async () => {
+      const { browser } = app;
+      await click(browser, "key-Caps");
+      await waitIdle(browser);
+      await check(browser, "taphold-inspector-light");
     });
   });
 });
