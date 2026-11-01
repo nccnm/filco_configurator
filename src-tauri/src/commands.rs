@@ -175,6 +175,15 @@ pub mod e2e {
             .collect()
     }
 
+    /// The info block of the HJKL_CapsSpace2_Info golden image (offset 0xe600), for the `info_on` control.
+    const INFO_IMAGE: &[u8] = include_bytes!("../../tests/fixtures/firmware/HJKL_CapsSpace2_Info/image.bin");
+
+    fn info_block() -> [u8; 512] {
+        INFO_IMAGE[0xE600..0xE600 + 512]
+            .try_into()
+            .expect("512-byte info block")
+    }
+
     pub fn initial_sim() -> SimBackend {
         let mut sim = SimBackend::new(SimKeyboard::new(pages()));
         let pace = std::env::var("KLE_E2E_PACE_MS")
@@ -217,7 +226,8 @@ pub mod e2e {
         Ok(())
     }
 
-    /// `op`: `unplug`, `replug`, `reset`, `assist_on`, `assist_off`, `fault:<json>`, `fault_next:<json>`.
+    /// `op`: `unplug`, `replug`, `reset`, `assist_on`, `assist_off`, `info_on`, `info_off`, `fault:<json>`,
+    /// `fault_next:<json>`.
     #[tauri::command]
     pub async fn e2e_sim<R: Runtime>(
         app: AppHandle<R>,
@@ -234,6 +244,10 @@ pub mod e2e {
             }),
             "assist_on" => sim.set_processes(&["FilcoAssistUI.exe", "FilcoAssistTray.exe"]),
             "assist_off" => sim.set_processes(&[]),
+            // Give the simulated keyboard the HJKL_CapsSpace2_Info config (as if that firmware were flashed),
+            // or take it away. A reconnect + read is needed after for the app to pick it up.
+            "info_on" => sim.with(|k| k.set_info_block(Some(info_block()))),
+            "info_off" => sim.with(|k| k.set_info_block(None)),
             other => {
                 // `fault:` counts sessions from the start, `fault_next:` from the next session of that command.
                 let (json, relative) = match (other.strip_prefix("fault:"), other.strip_prefix("fault_next:"))

@@ -1,5 +1,13 @@
 <script lang="ts">
-  import type { Action, Catalog, KeyView, ModelView, SlotView } from "../bindings/ipc";
+  import type {
+    Action,
+    Catalog,
+    FirmwareEditView,
+    KeyView,
+    ModelView,
+    SlotView,
+    TapHoldView,
+  } from "../bindings/ipc";
   import type { Key } from "../lib/i18n";
 
   interface Props {
@@ -7,13 +15,29 @@
     keyView: KeyView | null;
     slot: SlotView | null;
     base: SlotView | null;
+    /** Firmware tap-hold on this key, if any: the layer slot is then locked. */
+    tapHold?: TapHoldView | null;
+    /** Firmware Fn-layer change on this key, if any. */
+    fnEdit?: FirmwareEditView | null;
     layer: number;
     catalog: Catalog;
     disabled: boolean;
     t: (key: Key, vars?: Record<string, string | number>) => string;
     onassign: (layers: number[], action: Action) => void;
   }
-  let { model, keyView, slot, base, layer, catalog, disabled, t, onassign }: Props = $props();
+  let {
+    model,
+    keyView,
+    slot,
+    base,
+    tapHold = null,
+    fnEdit = null,
+    layer,
+    catalog,
+    disabled,
+    t,
+    onassign,
+  }: Props = $props();
 
   type Tab = "key" | "modifier" | "media" | "mouse" | "system" | "advanced";
   const TABS: [Tab, Key][] = [
@@ -188,13 +212,31 @@
         >
       </span>
     </header>
+    {#if tapHold}
+      <div class="note firmware small" data-testid="taphold-note">
+        <b>{t("taphold_title")}</b>
+        <span
+          >{t("taphold_tap", { tap: tapHold.tap })} ·
+          {tapHold.hold_is_layer
+            ? t("taphold_hold_layer", { layer: (tapHold.hold_layer ?? 0) + 1 })
+            : t("taphold_hold_key", { hold: tapHold.hold })} ·
+          {t("taphold_term", { ms: tapHold.term_ms })}</span
+        >
+        <span class="muted">{t("taphold_locked")}</span>
+      </div>
+    {/if}
+    {#if fnEdit}
+      <p class="note firmware small" data-testid="fn-edit-note">
+        {fnEdit.code ? t("fn_edit_set", { code: fnEdit.code }) : t("fn_edit_removed")}
+      </p>
+    {/if}
     {#if keyView.unverified}
       <p class="note warn small">{t("unverified_key")}</p>
     {/if}
     {#if keyView.note}
       <p class="note small muted">{keyView.note}</p>
     {/if}
-    {#if !slot.editable}
+    {#if !slot.editable && !tapHold}
       <p class="note warn small">{t("not_editable", { kind: slot.kind })}</p>
     {/if}
 
@@ -474,6 +516,20 @@
   .warn-text {
     color: var(--warn);
     margin: 0;
+  }
+  /* Read from the firmware info block (0x30), not editable here. */
+  .note.firmware {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    align-items: baseline;
+    padding: 6px 10px;
+    border: 1px solid color-mix(in srgb, var(--acc) 40%, var(--line));
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--acc) 7%, var(--paper));
+  }
+  .note.firmware b {
+    color: var(--acc);
   }
   /* VIA-like: the action categories in a column on the left, the picker fills the rest of the window. */
   .body {

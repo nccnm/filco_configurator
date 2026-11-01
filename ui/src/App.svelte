@@ -21,6 +21,12 @@
   const slots = $derived(snap?.layers[store.layer] ?? []);
   const selKey = $derived(store.selected !== null ? (model?.keys[store.selected] ?? null) : null);
   const selSlot = $derived(store.selected !== null ? (slots[store.selected] ?? null) : null);
+  const selTapHold = $derived(
+    selKey ? (snap?.firmware?.tap_holds.find((th) => th.index === selKey.index) ?? null) : null,
+  );
+  const selFnEdit = $derived(
+    selKey ? (snap?.firmware?.fn_edits.find((e) => e.index === selKey.index) ?? null) : null,
+  );
   const assistBlocked = $derived((snap?.assist.running.length ?? 0) > 0 || snap?.assist.probe_error != null);
   const nChanges = $derived(snap?.changes.length ?? 0);
   const linkedHere = $derived(snap?.assist.linked.filter((l) => l.layer === store.layer) ?? []);
@@ -369,6 +375,8 @@
           {model}
           {slots}
           selected={store.selected}
+          tapHolds={snap?.firmware?.tap_holds ?? []}
+          layer={store.layer}
           label={t("keyboard_label", { n: model.layers[store.layer]?.label ?? "" })}
           onselect={(i) => (store.selected = i)}
         />
@@ -438,9 +446,11 @@
       keyView={selKey}
       slot={selSlot}
       base={baseSlot}
+      tapHold={selTapHold}
+      fnEdit={selFnEdit}
       layer={store.layer}
       catalog={store.catalog}
-      disabled={!!store.busy}
+      disabled={!!store.busy || selTapHold !== null}
       {t}
       onassign={assign}
     />

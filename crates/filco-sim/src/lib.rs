@@ -141,6 +141,11 @@ impl SimKeyboard {
         self.info.is_some()
     }
 
+    /// Sets or clears the info block on an existing keyboard (for the E2E controls).
+    pub fn set_info_block(&mut self, block: Option<[u8; PAGE_LEN]>) {
+        self.info = block;
+    }
+
     #[must_use]
     pub fn with_fault(mut self, fault: Fault) -> Self {
         self.faults.push(fault);

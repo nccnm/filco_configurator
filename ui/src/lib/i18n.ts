@@ -85,6 +85,15 @@ const vi = {
   not_editable: "Ô này là {kind}; bản này chỉ hiển thị và giữ nguyên, chưa sửa được loại này.",
   unverified_key: "Chỉ số của phím này chưa được kiểm trên bàn phím thật.",
 
+  taphold_title: "Tap-hold (trong firmware)",
+  taphold_tap: "Gõ nhanh: {tap}",
+  taphold_hold_key: "Giữ: {hold}",
+  taphold_hold_layer: "Giữ: vào layer {layer}",
+  taphold_term: "Ngưỡng: {ms} ms",
+  taphold_locked: "Ô layer của phím này do firmware quyết định, không sửa ở đây.",
+  fn_edit_set: "Fn + phím này (trong firmware): {code}",
+  fn_edit_removed: "Chức năng Fn của phím này đã được bỏ trong firmware.",
+
   tab_key: "Phím",
   tab_modifier: "Modifier",
   tab_media: "Media",
@@ -273,6 +282,15 @@ const en: Record<Key, string> = {
   default_action: "Firmware default: {legend}",
   not_editable: "This slot is a {kind}; this version shows and keeps it but cannot edit this type.",
   unverified_key: "This key's index has not been verified on a real keyboard.",
+
+  taphold_title: "Tap-hold (in firmware)",
+  taphold_tap: "Tap: {tap}",
+  taphold_hold_key: "Hold: {hold}",
+  taphold_hold_layer: "Hold: enter layer {layer}",
+  taphold_term: "Term: {ms} ms",
+  taphold_locked: "The layer slot of this key is decided by the firmware; it cannot be edited here.",
+  fn_edit_set: "Fn + this key (in firmware): {code}",
+  fn_edit_removed: "This key's Fn function was removed in the firmware.",
 
   tab_key: "Key",
   tab_modifier: "Modifier",

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { KeyView, ModelView, SlotView } from "../bindings/ipc";
+  import type { KeyView, ModelView, SlotView, TapHoldView } from "../bindings/ipc";
   import { ARROWS, fit, geometry, lineYs, neighbour, viewBox, type Direction } from "../lib/keycap";
 
   interface Props {
@@ -7,9 +7,15 @@
     slots: SlotView[];
     selected: number | null;
     label: string;
+    /** Tap-hold keys from the firmware info block; they override the layer slot and lock it. */
+    tapHolds?: TapHoldView[];
+    /** Current layer index, so a key that holds into this layer is drawn bold. */
+    layer?: number;
     onselect: (i: number) => void;
   }
-  let { model, slots, selected, label, onselect }: Props = $props();
+  let { model, slots, selected, label, tapHolds = [], layer = 0, onselect }: Props = $props();
+
+  const tapHoldByIndex = $derived(new Map(tapHolds.map((t) => [t.index, t])));
 
   const geo = $derived(model.keys.map(geometry));
   const box = $derived(viewBox(model.width, model.height));
@@ -51,7 +57,11 @@
     return shifted ? `${shifted}\n${base}` : base;
   }
 
-  function aria(k: KeyView, s: SlotView | undefined): string {
+  function aria(k: KeyView, s: SlotView | undefined, th: TapHoldView | undefined): string {
+    if (th) {
+      const hold = th.hold_is_layer ? `hold layer ${(th.hold_layer ?? 0) + 1}` : `hold ${th.hold}`;
+      return `${k.legend}: tap ${th.tap}, ${hold}`;
+    }
     if (!s || s.kind === "empty") return k.legend;
     return `${k.legend}: ${s.long}`;
   }
@@ -69,21 +79,25 @@
   {#each model.keys as k, i (k.id)}
     {@const g = geo[i] ?? geometry(k)}
     {@const s = slots[i]}
+    {@const th = tapHoldByIndex.get(k.index)}
     {@const empty = !s || s.kind === "empty"}
     {@const text = stack(s?.cap_shift, s?.short ?? "")}
     {@const printed = stack(k.shifted, k.legend)}
     {@const showPrint = !empty && s?.short !== k.legend}
+    {@const holdsHere = th?.hold_is_layer && th.hold_layer === layer}
     <g
       class="key"
       class:mkey={k.m_key}
-      class:assigned={!empty}
+      class:assigned={th ? true : !empty}
+      class:taphold={!!th}
+      class:holds-here={holdsHere}
       class:pending={s?.changed}
       class:selected={selected === i}
-      class:locked={s && !s.editable}
+      class:locked={th ? true : s && !s.editable}
       role="button"
       tabindex={selected === i || (selected === null && i === 0) ? 0 : -1}
       aria-pressed={selected === i}
-      aria-label={aria(k, s)}
+      aria-label={aria(k, s, th)}
       data-i={i}
       data-key={k.id}
       data-testid={`key-${k.id}`}
@@ -92,7 +106,26 @@
     >
       <rect class="outer" x={g.outer.x} y={g.outer.y} width={g.outer.w} height={g.outer.h} rx="7" />
       <rect class="inner" x={g.inner.x} y={g.inner.y} width={g.inner.w} height={g.inner.h} rx="5" />
-      {#if empty}
+      {#if th}
+        {@const holdSize = fit(th.hold, g.inner.w, 9.5)}
+        <text
+          x={g.cx}
+          y={g.cy - 10}
+          class="lg-hold"
+          font-size={holdSize}
+          text-anchor="middle"
+          dominant-baseline="central">{th.hold}</text
+        >
+        {@const tapSize = Math.min(13, mainSize(th.tap, g.inner.w))}
+        <text
+          x={g.cx}
+          y={g.cy + 5}
+          class="lg-main"
+          font-size={tapSize}
+          text-anchor="middle"
+          dominant-baseline="central">{th.tap}</text
+        >
+      {:else if empty}
         {@const size = fit(printed, g.inner.w, 12)}
         {#each lineYs(printed, g.cy, size) as y, li (li)}
           <text
@@ -202,6 +235,23 @@
     font-family: var(--font-key);
     font-weight: 500;
     opacity: 0.8;
+  }
+  .lg-hold {
+    fill: var(--acc);
+    font-family: var(--font-key);
+    font-weight: 600;
+  }
+  /* A tap-hold key: the layer slot does not apply (locked), the firmware decides. */
+  .key.taphold .inner {
+    fill: color-mix(in srgb, var(--acc) 7%, var(--paper));
+  }
+  /* A key whose hold turns on the layer being viewed: emphasised on that layer. */
+  .key.holds-here .outer {
+    fill: color-mix(in srgb, var(--acc) 22%, var(--paper));
+    stroke-width: 2;
+  }
+  .key.holds-here .lg-main {
+    font-weight: 700;
   }
   .lg-print {
     fill: var(--line);
