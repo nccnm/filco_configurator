@@ -102,6 +102,69 @@ describe("keyboard layer editor (simulated keyboard)", () => {
     await browser.keys("Escape");
   });
 
+  it("opens the tab of what the selected key holds and scrolls it into the middle", async () => {
+    const { browser } = app;
+    // The open tab, the marked button(s) in the panel, and how far the first sits from the panel's middle.
+    const shown = () =>
+      browser.execute(() => {
+        const panel = document.querySelector(".inspector .panel");
+        const marked = [...panel.querySelectorAll(".current")];
+        const p = panel.getBoundingClientRect();
+        const r = marked[0]?.getBoundingClientRect();
+        return {
+          tab: document.querySelector('.inspector [role="tab"][aria-selected="true"]')?.dataset.testid,
+          marked: marked.map((e) => e.dataset.testid ?? e.textContent.trim()),
+          off: r ? Math.round(r.top + r.height / 2 - (p.top + panel.clientHeight / 2)) : null,
+          scrolled: panel.scrollTop,
+          ctrl: document.querySelector(".inspector .chip[aria-pressed='true']")?.textContent.trim() ?? null,
+        };
+      });
+    // Waits until `done` holds (the panel scrolls after the next render), then returns what is shown, so a
+    // timeout still fails with the assertions below.
+    const until = async (done) => {
+      let s;
+      await browser
+        .waitUntil(async () => done((s = await shown())), { timeout: 5000, interval: 25 })
+        .catch(() => {});
+      return s;
+    };
+    const centred = (s) => s.off !== null && Math.abs(s.off) <= 2;
+
+    // Layer 1, M2 = Home: far down the Key tab, so the panel scrolls until Home is in the middle.
+    await select(browser, 0, "M2");
+    let s = await until((x) => x.tab === "tab-key" && centred(x));
+    assert.equal(s.tab, "tab-key");
+    assert.deepEqual(s.marked, ["usage-4a"]);
+    assert.ok(Math.abs(s.off) <= 2, `Home is in the middle (off by ${s.off}px)`);
+
+    // Layer 3, W = Ctrl+Right: the Ctrl chip is on, so the arrow is marked.
+    await select(browser, 2, "W");
+    s = await until((x) => x.ctrl === "Ctrl" && centred(x));
+    assert.equal(s.tab, "tab-key");
+    assert.equal(s.ctrl, "Ctrl");
+    assert.deepEqual(s.marked, ["usage-4f"]);
+    assert.ok(Math.abs(s.off) <= 2, `Right is in the middle (off by ${s.off}px)`);
+
+    // Layer 3, P = scroll up; R = left click: the Mouse tab.
+    await click(browser, "key-P");
+    s = await until((x) => x.tab === "tab-mouse" && x.marked.length > 0);
+    assert.equal(s.tab, "tab-mouse");
+    assert.equal(s.marked.length, 1, `one mouse action marked: ${s.marked}`);
+    await click(browser, "key-R");
+    s = await until((x) => x.tab === "tab-mouse" && x.marked.length > 0 && x.marked[0] !== "");
+    assert.equal(s.tab, "tab-mouse");
+    assert.equal(s.marked.length, 1, `one mouse action marked: ${s.marked}`);
+
+    // An empty slot: the Key tab from the top, nothing marked.
+    await click(browser, "key-Q");
+    s = await until((x) => x.tab === "tab-key" && x.marked.length === 0 && x.scrolled === 0);
+    assert.equal(s.tab, "tab-key");
+    assert.deepEqual(s.marked, []);
+    assert.equal(s.scrolled, 0);
+    await browser.keys("Escape");
+    await click(browser, "layer-0");
+  });
+
   it("edits, undoes, redoes and discards", async () => {
     const { browser } = app;
     const before = await select(browser, 2, "M1");

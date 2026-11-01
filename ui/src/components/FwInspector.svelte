@@ -8,7 +8,9 @@
     FwView,
     KeyView,
   } from "../bindings/ipc";
+  import { tick } from "svelte";
   import type { Key } from "../lib/i18n";
+  import { centerCurrent } from "../lib/reveal";
   import FwIcon from "./FwIcon.svelte";
 
   interface Props {
@@ -54,6 +56,18 @@
     section = key?.tap_hold ? "taphold" : "fn";
     field = "tap";
     term = key?.tap_hold?.term_ms ?? 200;
+    query = "";
+  });
+
+  // Scroll the code the key holds into the middle of the panel: for another key, section or tap-hold field.
+  // A derived index, so an edit (a new `key` object for the same key) does not scroll again.
+  let panel = $state<HTMLElement>();
+  const keyIndex = $derived(key?.index ?? -1);
+  $effect(() => {
+    void keyIndex;
+    void section;
+    void field;
+    void tick().then(() => centerCurrent(panel));
   });
   $effect(() => {
     if (key?.tap_hold) term = key.tap_hold.term_ms;
@@ -186,7 +200,7 @@
         {/each}
       </div>
 
-      <div class="panel" role="tabpanel">
+      <div class="panel" role="tabpanel" bind:this={panel}>
         {#if section === "taphold"}
           {#if lockedTh && !th}
             <p class="note warn small">{t(`fw_th_locked_${lockedTh}` as Key)}</p>

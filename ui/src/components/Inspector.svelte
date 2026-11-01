@@ -8,7 +8,9 @@
     SlotView,
     TapHoldView,
   } from "../bindings/ipc";
+  import { tick, untrack } from "svelte";
   import type { Key } from "../lib/i18n";
+  import { centerCurrent } from "../lib/reveal";
 
   interface Props {
     model: ModelView;
@@ -93,6 +95,55 @@
     extraLayers = [];
   });
 
+  let panel = $state<HTMLElement>();
+  const selection = $derived(keyView && slot ? `${layer}:${keyView.index}` : "");
+  const signed = (b: number) => (b << 24) >> 24;
+
+  /** The tab that shows what a slot holds; `b1`, `b2` are its second and third bytes. */
+  function tabFor(s: SlotView, b1: number, b2: number): Tab {
+    switch (s.kind) {
+      case "empty":
+        return "key";
+      case "key":
+        return b2 === 0 && b1 !== 0 ? "modifier" : "key";
+      case "mouse":
+        return "mouse";
+      case "consumer":
+        return "media";
+      case "system":
+        return "system";
+      default:
+        return "advanced";
+    }
+  }
+
+  // Another key (or layer) selected: open the tab for what it holds, take its modifiers and mouse amounts so the
+  // matching button is marked, and clear the search so that button is not filtered out. Focus stays on the
+  // keyboard, where the arrows move between keys.
+  $effect(() => {
+    if (!selection) return;
+    untrack(() => {
+      if (!slot) return;
+      const [, b1 = 0, b2 = 0, b3 = 0] = slot.hex
+        .trim()
+        .split(/\s+/)
+        .map((x) => parseInt(x, 16));
+      tab = tabFor(slot, b1, b2);
+      query = "";
+      mods = slot.kind === "key" ? b1 : 0;
+      if (slot.kind === "mouse" && b1 === 3) scrollAmount = Math.abs(signed(b2)) || 1;
+      if (slot.kind === "mouse" && b1 === 4)
+        moveStep = Math.max(Math.abs(signed(b2)), Math.abs(signed(b3))) || 8;
+    });
+  });
+
+  // Then scroll the marked button into the middle of the panel; also when another tab is opened.
+  $effect(() => {
+    void selection;
+    void tab;
+    void tick().then(() => centerCurrent(panel));
+  });
+
   const targets = $derived([layer, ...extraLayers.filter((l) => l !== layer)].sort());
 
   const filtered = $derived.by(() => {
@@ -114,6 +165,12 @@
         return `03 ${hex(a.usage & 0xff)} ${hex(a.usage >> 8)} 00`;
       case "system":
         return `04 ${hex(a.usage)} 00 00`;
+      case "mouse_click":
+        return `01 01 ${hex(a.buttons)} 00`;
+      case "mouse_scroll":
+        return `01 03 ${hex(a.amount & 0xff)} 00`;
+      case "mouse_move":
+        return `01 04 ${hex(a.dx & 0xff)} ${hex(a.dy & 0xff)}`;
       default:
         return null;
     }
@@ -255,7 +312,7 @@
         <span class="later muted small">{t("macro_later")}</span>
       </div>
 
-      <div class="panel" role="tabpanel">
+      <div class="panel" role="tabpanel" bind:this={panel}>
         {#if tab === "key"}
           <div class="row">
             <input
@@ -332,8 +389,11 @@
             <h3 class="small muted">{t("mouse_click")}</h3>
             <div class="grid">
               {#each BUTTONS as [bit, label] (bit)}
-                <button class="cap" {disabled} onclick={() => assign({ type: "mouse_click", buttons: bit })}
-                  >{t(label)}</button
+                <button
+                  class="cap"
+                  class:current={current({ type: "mouse_click", buttons: bit })}
+                  {disabled}
+                  onclick={() => assign({ type: "mouse_click", buttons: bit })}>{t(label)}</button
                 >
               {/each}
             </div>
@@ -347,12 +407,14 @@
               <button
                 class="cap"
                 {disabled}
+                class:current={current({ type: "mouse_scroll", amount: Math.abs(scrollAmount) })}
                 onclick={() => assign({ type: "mouse_scroll", amount: Math.abs(scrollAmount) })}
                 >{t("scroll_up")}</button
               >
               <button
                 class="cap"
                 {disabled}
+                class:current={current({ type: "mouse_scroll", amount: -Math.abs(scrollAmount) })}
                 onclick={() => assign({ type: "mouse_scroll", amount: -Math.abs(scrollAmount) })}
                 >{t("scroll_down")}</button
               >
@@ -367,21 +429,25 @@
               <button
                 class="cap"
                 {disabled}
+                class:current={current({ type: "mouse_move", dx: -moveStep, dy: 0 })}
                 onclick={() => assign({ type: "mouse_move", dx: -moveStep, dy: 0 })}>←</button
               >
               <button
                 class="cap"
                 {disabled}
+                class:current={current({ type: "mouse_move", dx: 0, dy: -moveStep })}
                 onclick={() => assign({ type: "mouse_move", dx: 0, dy: -moveStep })}>↑</button
               >
               <button
                 class="cap"
                 {disabled}
+                class:current={current({ type: "mouse_move", dx: 0, dy: moveStep })}
                 onclick={() => assign({ type: "mouse_move", dx: 0, dy: moveStep })}>↓</button
               >
               <button
                 class="cap"
                 {disabled}
+                class:current={current({ type: "mouse_move", dx: moveStep, dy: 0 })}
                 onclick={() => assign({ type: "mouse_move", dx: moveStep, dy: 0 })}>→</button
               >
             </div>
