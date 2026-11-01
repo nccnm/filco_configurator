@@ -5,7 +5,11 @@ export type UiLang = "vi" | "en";
 
 export type Phase = "no_device" | "unsupported" | "connected" | "ready" | "read_failed";
 
-export type KeyView = { id: string, index: number, x: number, y: number, w: number, h: number, legend: string, m_key: boolean, unverified: boolean, note: string | null, };
+export type KeyView = { id: string, index: number, x: number, y: number, w: number, h: number, legend: string, 
+/**
+ * Shift character printed above `legend` (`{` above `[`), when the key's default usage has one.
+ */
+shifted: string | null, m_key: boolean, unverified: boolean, note: string | null, };
 
 export type LayerInfoView = { label: string, led: string, led_name: string, };
 
@@ -32,7 +36,11 @@ short: string,
  * Small line above `short` on the keycap: the modifiers of a long key combination, whose key alone is then
  * in `short` (so "Ctrl+Shift+Alt+E" stays readable).
  */
-cap_sub: string | null, long: string, 
+cap_sub: string | null, 
+/**
+ * Shift character drawn above `short` for a plain digit or symbol key (`{` above `[`).
+ */
+cap_shift: string | null, long: string, 
 /**
  * Differs from what the keyboard holds.
  */
@@ -112,7 +120,11 @@ phase: string, done: number, total: number,
  */
 step: number, steps: number, };
 
-export type KeyUsageView = { code: number, legend: string, name: string, group: string, };
+export type KeyUsageView = { code: number, legend: string, 
+/**
+ * Shift character drawn above `legend` on the picker button.
+ */
+shifted: string | null, name: string, group: string, };
 
 export type ConsumerUsageView = { code: number, legend: string, name: string, filco_assist: boolean, };
 

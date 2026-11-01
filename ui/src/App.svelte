@@ -498,8 +498,6 @@
     display: grid;
     /* header, layer tabs, banners, keyboard, inspector (fills the rest) */
     grid-template-rows: auto auto auto minmax(0, auto) minmax(0, 1fr);
-    max-width: 1440px;
-    margin: 0 auto;
   }
   .app.idle {
     /* header, banners, the centred screen */

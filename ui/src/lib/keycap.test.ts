@@ -10,6 +10,7 @@ const key = (id: string, x: number, y: number, w = 1): KeyView => ({
   w,
   h: 1,
   legend: id,
+  shifted: null,
   m_key: false,
   unverified: false,
   note: null,

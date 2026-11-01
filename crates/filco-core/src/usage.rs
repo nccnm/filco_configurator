@@ -184,6 +184,35 @@ pub fn keyboard(code: u8) -> Option<&'static KeyUsage> {
     KEYBOARD.iter().find(|u| u.code == code)
 }
 
+/// The character a digit or symbol key types with Shift on the US layout (the layout of every supported model),
+/// drawn above the plain character on keycaps, as printed on the keyboard: `[` with `{`.
+pub fn shifted(code: u8) -> Option<&'static str> {
+    Some(match code {
+        0x1e => "!",
+        0x1f => "@",
+        0x20 => "#",
+        0x21 => "$",
+        0x22 => "%",
+        0x23 => "^",
+        0x24 => "&",
+        0x25 => "*",
+        0x26 => "(",
+        0x27 => ")",
+        0x2d => "_",
+        0x2e => "+",
+        0x2f => "{",
+        0x30 => "}",
+        0x31 => "|",
+        0x33 => ":",
+        0x34 => "\"",
+        0x35 => "~",
+        0x36 => "<",
+        0x37 => ">",
+        0x38 => "?",
+        _ => return None,
+    })
+}
+
 /// One consumer-page usage.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct ConsumerUsage {
@@ -279,6 +308,20 @@ mod tests {
             assert!(seen.insert(u.code), "duplicate consumer usage {:#x}", u.code);
         }
         assert_eq!(CONSUMER.iter().filter(|u| u.filco_assist).count(), 7);
+    }
+
+    #[test]
+    fn shifted_characters_match_the_names() {
+        // Every digit and US symbol key has its Shift character, the same one its full name lists ("[ {").
+        for u in KEYBOARD
+            .iter()
+            .filter(|u| matches!(u.group, UsageGroup::Digit | UsageGroup::Symbol))
+        {
+            let s = shifted(u.code).unwrap_or_else(|| panic!("no shifted character for {}", u.name));
+            assert_eq!(u.name, format!("{} {s}", u.legend), "0x{:02x}", u.code);
+        }
+        assert_eq!(shifted(0x04), None, "letters show one legend");
+        assert_eq!(shifted(0x32), None, "non-US keys are not on the US layout");
     }
 
     #[test]

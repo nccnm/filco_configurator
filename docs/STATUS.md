@@ -151,6 +151,15 @@ Sửa theo review giao diện vòng 1 (`docs/screenshots/` sinh lại toàn bộ
 | Màn hình chưa chọn phím trống nửa dưới | Inspector giữ nguyên khung: tiêu đề "Chưa chọn phím", hàng tab (tắt), và bảng phím tắt hai cột (chọn phím bên trái; sửa và lưu bên phải) vẽ bằng keycap nhỏ |
 | Soi lại các ảnh khác | Đường dẫn sao lưu chỉ xuống dòng sau dấu `\` (trước đó gãy giữa timestamp hoặc giữa "filco-m10sp"); vùng cuộn của inspector mờ dần ở mép dưới thay vì cắt ngang một hàng nút; hai nút ở chân hộp thoại sao lưu có viền để thẳng lề với nội dung; bóng menu "Thêm" thấy được ở chế độ tối; màn hình "chưa có bàn phím" canh giữa theo chiều dọc (lưới gốc có một hàng thừa) và đoạn chữ xuống dòng cân |
 
+Sửa theo góp ý giao diện vòng 2 (bố cục kiểu VIA; `docs/screenshots/` và ảnh chuẩn E2E sinh lại):
+
+| Điểm | Sửa |
+|---|---|
+| Ứng dụng giới hạn 1440 px, cửa sổ rộng thì hai bên trống | Bỏ giới hạn: thanh trên, tab layer và bảng chọn hành động trải hết chiều rộng; hình bàn phím giữ cỡ cũ, canh giữa |
+| Nút chọn hành động nhỏ, dồn về bên trái | Nhóm hành động (Phím, Modifier, Media, Chuột, Hệ thống, Nâng cao) thành cột bên trái; nút chọn cao 50 px, xếp lưới tự giãn hết chiều rộng, cùng cỡ cột cho mọi nhóm nên thẳng hàng giữa các nhóm; Media / Chuột / Hệ thống dùng cột rộng hơn; ô "Bước" của Chuột nằm cạnh tiêu đề nhóm |
+| Nút chọn rộng hẹp khác nhau theo chữ; tab Modifier vẫn nút nhỏ | Mọi nút chọn (mọi tab) là ô vuông 60 px cố định; cột cố định, dàn đều hết chiều rộng; tab Modifier dùng cùng ô vuông, nút "Gán" cao 40 px |
+| Phím số và ký hiệu không hiện ký tự khi nhấn Shift | `usage::shifted` (bố cục US, có test khớp với tên phím); hình bàn phím (ô trống theo `default_usage` của model, ô đã gán phím không modifier) và nút chọn vẽ hai dòng như keycap thật: `{` trên `[`, `!` trên `1` |
+
 Đo lại sau khi sửa: bộ nhớ tổng 217 MB (trước 207 MB; renderer +5 MB, GPU +5 MB), vẫn dưới 220 MB nhưng sát; script
 đo cũng được sửa để không đếm nhầm tiến trình lạ có PID cha bị tái dùng (lần đo đầu có một `AutoHotkey64.exe` 3 MB).
 

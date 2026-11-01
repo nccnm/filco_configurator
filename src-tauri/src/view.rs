@@ -47,6 +47,8 @@ pub struct KeyView {
     pub w: f32,
     pub h: f32,
     pub legend: String,
+    /// Shift character printed above `legend` (`{` above `[`), when the key's default usage has one.
+    pub shifted: Option<String>,
     pub m_key: bool,
     pub unverified: bool,
     pub note: Option<String>,
@@ -88,6 +90,12 @@ impl ModelView {
                 w: k.w,
                 h: k.h,
                 legend: k.legend.clone(),
+                shifted: k
+                    .default_usage
+                    .and_then(|u| u8::try_from(u.0).ok())
+                    .filter(|&u| usage::keyboard(u).is_some_and(|ku| ku.legend == k.legend))
+                    .and_then(usage::shifted)
+                    .map(str::to_owned),
                 m_key: k.tags.contains(&KeyTag::MKey),
                 unverified: k.tags.contains(&KeyTag::Unverified),
                 note: k.note.clone(),
@@ -135,6 +143,8 @@ pub struct SlotView {
     /// Small line above `short` on the keycap: the modifiers of a long key combination, whose key alone is then
     /// in `short` (so "Ctrl+Shift+Alt+E" stays readable).
     pub cap_sub: Option<String>,
+    /// Shift character drawn above `short` for a plain digit or symbol key (`{` above `[`).
+    pub cap_shift: Option<String>,
     pub long: String,
     /// Differs from what the keyboard holds.
     pub changed: bool,
@@ -196,11 +206,16 @@ impl SlotView {
             }
             _ => (label.short, None),
         };
+        let cap_shift = match kind {
+            SlotKind::Key { mods, usage } if mods.0 == 0 => usage::shifted(usage).map(str::to_owned),
+            _ => None,
+        };
         SlotView {
             hex: slot.to_string(),
             kind: kind_name(kind).to_owned(),
             short,
             cap_sub,
+            cap_shift,
             long: label.long,
             changed,
             editable: !matches!(kind, SlotKind::Macro { .. } | SlotKind::Other { .. }),
@@ -349,6 +364,8 @@ pub struct ProgressView {
 pub struct KeyUsageView {
     pub code: u8,
     pub legend: String,
+    /// Shift character drawn above `legend` on the picker button.
+    pub shifted: Option<String>,
     pub name: String,
     pub group: String,
 }
@@ -399,6 +416,7 @@ impl Catalog {
                 .map(|u| KeyUsageView {
                     code: u.code,
                     legend: u.legend.to_owned(),
+                    shifted: usage::shifted(u.code).map(str::to_owned),
                     name: u.name.to_owned(),
                     group: group_name(u.group).to_owned(),
                 })
@@ -587,7 +605,26 @@ mod tests {
         );
         let short = SlotView::new("02 01 4f 00".parse().unwrap(), false, UiLang::En);
         assert_eq!(short.cap_sub, None);
+        // A plain symbol key carries its Shift character; with a modifier the keycap shows the combination only.
+        let bracket = SlotView::new("02 00 2f 00".parse().unwrap(), false, UiLang::En);
+        assert_eq!(
+            (bracket.short.as_str(), bracket.cap_shift.as_deref()),
+            ("[", Some("{"))
+        );
+        let ctrl_bracket = SlotView::new("02 01 2f 00".parse().unwrap(), false, UiLang::En);
+        assert_eq!(ctrl_bracket.cap_shift, None);
         let json = serde_json::to_string(&Action::Key { mods: 1, usage: 4 }).unwrap();
         assert_eq!(json, r#"{"type":"key","mods":1,"usage":4}"#);
+    }
+
+    #[test]
+    fn printed_keys_carry_their_shift_character() {
+        let m = filco_core::model::builtin::models().unwrap().remove(0);
+        let v = ModelView::new(&m, UiLang::En);
+        let shifted = |id: &str| v.keys.iter().find(|k| k.id == id).unwrap().shifted.clone();
+        assert_eq!(shifted("[").as_deref(), Some("{"));
+        assert_eq!(shifted("1").as_deref(), Some("!"));
+        assert_eq!(shifted("Q"), None);
+        assert_eq!(shifted("M1"), None);
     }
 }

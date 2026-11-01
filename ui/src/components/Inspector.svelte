@@ -133,26 +133,28 @@
       <h2 class="muted">{t("no_key_title")}</h2>
       <span class="what muted">{t("no_key_selected")}</span>
     </header>
-    <div class="tabs" role="tablist" aria-disabled="true">
-      {#each TABS as [id, label] (id)}
-        <button role="tab" class="tab" aria-selected="false" disabled>{t(label)}</button>
-      {/each}
-      <span class="later muted small">{t("macro_later")}</span>
-    </div>
-    <div class="panel">
-      <h3 class="small muted">{t("shortcuts")}</h3>
-      <dl class="shortcuts">
-        {#each shortcuts as [keys, label] (label)}
-          <div>
-            <dt>
-              {#each keys as k, i (i)}{#if k === "-" || k === "+"}<span class="sep">{k}</span>{:else}<kbd
-                    >{k}</kbd
-                  >{/if}{/each}
-            </dt>
-            <dd>{t(label)}</dd>
-          </div>
+    <div class="body">
+      <div class="tabs" role="tablist" aria-orientation="vertical" aria-disabled="true">
+        {#each TABS as [id, label] (id)}
+          <button role="tab" class="tab" aria-selected="false" disabled>{t(label)}</button>
         {/each}
-      </dl>
+        <span class="later muted small">{t("macro_later")}</span>
+      </div>
+      <div class="panel">
+        <h3 class="small muted">{t("shortcuts")}</h3>
+        <dl class="shortcuts">
+          {#each shortcuts as [keys, label] (label)}
+            <div>
+              <dt>
+                {#each keys as k, i (i)}{#if k === "-" || k === "+"}<span class="sep">{k}</span>{:else}<kbd
+                      >{k}</kbd
+                    >{/if}{/each}
+              </dt>
+              <dd>{t(label)}</dd>
+            </div>
+          {/each}
+        </dl>
+      </div>
     </div>
   {:else}
     <header class="info">
@@ -196,177 +198,187 @@
       <p class="note warn small">{t("not_editable", { kind: slot.kind })}</p>
     {/if}
 
-    <div class="tabs" role="tablist">
-      {#each TABS as [id, label] (id)}
-        <button
-          role="tab"
-          class="tab"
-          aria-selected={tab === id}
-          class:active={tab === id}
-          onclick={() => (tab = id)}
-          data-testid={`tab-${id}`}>{t(label)}</button
-        >
-      {/each}
-      <span class="later muted small">{t("macro_later")}</span>
-    </div>
-
-    <div class="panel" role="tabpanel">
-      {#if tab === "key"}
-        <div class="row">
-          <input
-            type="search"
-            placeholder={t("search")}
-            bind:value={query}
-            aria-label={t("search")}
-            data-testid="key-search"
-          />
-          <span class="muted small">{t("modifiers")}</span>
-          {#each MOD_BITS.slice(0, 4) as [bit, name] (bit)}
-            <button class="chip" aria-pressed={(mods & bit) !== 0} onclick={() => (mods ^= bit)}
-              >{name}</button
-            >
-          {/each}
-        </div>
-        <div class="groups">
-          {#each GROUPS as g (g)}
-            {@const items = filtered.filter((u) => u.group === g)}
-            {#if items.length}
-              <div class="group">
-                <h3 class="small muted">{t(`group_${g}`)}</h3>
-                <div class="grid">
-                  {#each items as u (u.code)}
-                    {@const a = keyAction(u.code)}
-                    <button
-                      class="cap"
-                      class:current={current(a)}
-                      title={`${u.name} (0x${hex(u.code)})`}
-                      {disabled}
-                      onclick={() => assign(a)}
-                      data-testid={`usage-${hex(u.code)}`}>{u.legend}</button
-                    >
-                  {/each}
-                </div>
-              </div>
-            {/if}
-          {/each}
-        </div>
-      {:else if tab === "modifier"}
-        <p class="small muted">{t("modifier_only")}</p>
-        <div class="row">
-          {#each MOD_BITS as [bit, name] (bit)}
-            <button class="chip" aria-pressed={(mods & bit) !== 0} onclick={() => (mods ^= bit)}
-              >{name}</button
-            >
-          {/each}
+    <div class="body">
+      <div class="tabs" role="tablist" aria-orientation="vertical">
+        {#each TABS as [id, label] (id)}
           <button
-            class="primary"
+            role="tab"
+            class="tab"
+            aria-selected={tab === id}
+            class:active={tab === id}
+            onclick={() => (tab = id)}
+            data-testid={`tab-${id}`}>{t(label)}</button
+          >
+        {/each}
+        <span class="later muted small">{t("macro_later")}</span>
+      </div>
+
+      <div class="panel" role="tabpanel">
+        {#if tab === "key"}
+          <div class="row">
+            <input
+              type="search"
+              placeholder={t("search")}
+              bind:value={query}
+              aria-label={t("search")}
+              data-testid="key-search"
+            />
+            <span class="muted small">{t("modifiers")}</span>
+            {#each MOD_BITS.slice(0, 4) as [bit, name] (bit)}
+              <button class="chip" aria-pressed={(mods & bit) !== 0} onclick={() => (mods ^= bit)}
+                >{name}</button
+              >
+            {/each}
+          </div>
+          <div class="groups">
+            {#each GROUPS as g (g)}
+              {@const items = filtered.filter((u) => u.group === g)}
+              {#if items.length}
+                <div class="group">
+                  <h3 class="small muted">{t(`group_${g}`)}</h3>
+                  <div class="grid">
+                    {#each items as u (u.code)}
+                      {@const a = keyAction(u.code)}
+                      <button
+                        class="cap"
+                        class:current={current(a)}
+                        title={`${u.name} (0x${hex(u.code)})`}
+                        {disabled}
+                        onclick={() => assign(a)}
+                        data-testid={`usage-${hex(u.code)}`}
+                        >{#if u.shifted}<span class="shift">{u.shifted}</span>{/if}<span>{u.legend}</span
+                        ></button
+                      >
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+            {/each}
+          </div>
+        {:else if tab === "modifier"}
+          <p class="small muted">{t("modifier_only")}</p>
+          <div class="grid">
+            {#each MOD_BITS as [bit, name] (bit)}
+              <button class="cap" aria-pressed={(mods & bit) !== 0} onclick={() => (mods ^= bit)}
+                >{name}</button
+              >
+            {/each}
+          </div>
+          <button
+            class="primary assign"
             disabled={disabled || mods === 0}
             onclick={() => assign({ type: "key", mods, usage: 0 })}>{t("assign_modifiers")}</button
           >
-        </div>
-      {:else if tab === "media"}
-        {#each [true, false] as fa (fa)}
-          <h3 class="small muted">{t(fa ? "media_filco" : "media_more")}</h3>
-          <div class="grid">
-            {#each catalog.consumer.filter((u) => u.filco_assist === fa) as u (u.code)}
-              {@const a = consumerAction(u.code)}
+        {:else if tab === "media"}
+          {#each [true, false] as fa (fa)}
+            <h3 class="small muted">{t(fa ? "media_filco" : "media_more")}</h3>
+            <div class="grid">
+              {#each catalog.consumer.filter((u) => u.filco_assist === fa) as u (u.code)}
+                {@const a = consumerAction(u.code)}
+                <button
+                  class="cap"
+                  class:current={current(a)}
+                  title={`${u.name} (0x${hex(u.code, 4)})`}
+                  {disabled}
+                  onclick={() => assign(a)}>{u.legend}</button
+                >
+              {/each}
+            </div>
+          {/each}
+        {:else if tab === "mouse"}
+          <div class="mouse">
+            <h3 class="small muted">{t("mouse_click")}</h3>
+            <div class="grid">
+              {#each BUTTONS as [bit, label] (bit)}
+                <button class="cap" {disabled} onclick={() => assign({ type: "mouse_click", buttons: bit })}
+                  >{t(label)}</button
+                >
+              {/each}
+            </div>
+            <div class="sub">
+              <h3 class="small muted">{t("mouse_scroll")}</h3>
+              <label class="small"
+                >{t("amount")} <input type="number" min="1" max="127" bind:value={scrollAmount} /></label
+              >
+            </div>
+            <div class="grid">
               <button
-                class="cap wide"
+                class="cap"
+                {disabled}
+                onclick={() => assign({ type: "mouse_scroll", amount: Math.abs(scrollAmount) })}
+                >{t("scroll_up")}</button
+              >
+              <button
+                class="cap"
+                {disabled}
+                onclick={() => assign({ type: "mouse_scroll", amount: -Math.abs(scrollAmount) })}
+                >{t("scroll_down")}</button
+              >
+            </div>
+            <div class="sub">
+              <h3 class="small muted">{t("mouse_move")}</h3>
+              <label class="small"
+                >{t("amount")} <input type="number" min="1" max="127" bind:value={moveStep} /></label
+              >
+            </div>
+            <div class="grid">
+              <button
+                class="cap"
+                {disabled}
+                onclick={() => assign({ type: "mouse_move", dx: -moveStep, dy: 0 })}>←</button
+              >
+              <button
+                class="cap"
+                {disabled}
+                onclick={() => assign({ type: "mouse_move", dx: 0, dy: -moveStep })}>↑</button
+              >
+              <button
+                class="cap"
+                {disabled}
+                onclick={() => assign({ type: "mouse_move", dx: 0, dy: moveStep })}>↓</button
+              >
+              <button
+                class="cap"
+                {disabled}
+                onclick={() => assign({ type: "mouse_move", dx: moveStep, dy: 0 })}>→</button
+              >
+            </div>
+          </div>
+        {:else if tab === "system"}
+          <p class="small warn-text">{t("system_note")}</p>
+          <div class="grid">
+            {#each catalog.system as u (u.code)}
+              {@const a = systemAction(u.code)}
+              <button
+                class="cap"
                 class:current={current(a)}
-                title={`${u.name} (0x${hex(u.code, 4)})`}
+                title={u.name}
                 {disabled}
                 onclick={() => assign(a)}>{u.legend}</button
               >
             {/each}
           </div>
-        {/each}
-      {:else if tab === "mouse"}
-        <div class="mouse">
-          <h3 class="small muted">{t("mouse_click")}</h3>
-          <div class="grid">
-            {#each BUTTONS as [bit, label] (bit)}
-              <button
-                class="cap wide"
-                {disabled}
-                onclick={() => assign({ type: "mouse_click", buttons: bit })}>{t(label)}</button
-              >
-            {/each}
-          </div>
-          <h3 class="small muted">{t("mouse_scroll")}</h3>
+        {:else}
           <div class="row">
-            <label class="small"
-              >{t("amount")} <input type="number" min="1" max="127" bind:value={scrollAmount} /></label
-            >
+            <label class="small" for="raw">{t("raw_bytes")}</label>
+            <input
+              id="raw"
+              type="text"
+              class="mono"
+              bind:value={raw}
+              spellcheck="false"
+              data-testid="raw-input"
+            />
             <button
-              class="cap wide"
-              {disabled}
-              onclick={() => assign({ type: "mouse_scroll", amount: Math.abs(scrollAmount) })}
-              >{t("scroll_up")}</button
-            >
-            <button
-              class="cap wide"
-              {disabled}
-              onclick={() => assign({ type: "mouse_scroll", amount: -Math.abs(scrollAmount) })}
-              >{t("scroll_down")}</button
+              class="primary"
+              disabled={disabled || !rawValid}
+              onclick={() => assign({ type: "raw", hex: raw })}
+              data-testid="raw-assign">{t("assign")}</button
             >
           </div>
-          <h3 class="small muted">{t("mouse_move")}</h3>
-          <div class="row">
-            <label class="small"
-              >{t("amount")} <input type="number" min="1" max="127" bind:value={moveStep} /></label
-            >
-            <button
-              class="cap"
-              {disabled}
-              onclick={() => assign({ type: "mouse_move", dx: -moveStep, dy: 0 })}>←</button
-            >
-            <button
-              class="cap"
-              {disabled}
-              onclick={() => assign({ type: "mouse_move", dx: 0, dy: -moveStep })}>↑</button
-            >
-            <button class="cap" {disabled} onclick={() => assign({ type: "mouse_move", dx: 0, dy: moveStep })}
-              >↓</button
-            >
-            <button class="cap" {disabled} onclick={() => assign({ type: "mouse_move", dx: moveStep, dy: 0 })}
-              >→</button
-            >
-          </div>
-        </div>
-      {:else if tab === "system"}
-        <p class="small warn-text">{t("system_note")}</p>
-        <div class="grid">
-          {#each catalog.system as u (u.code)}
-            {@const a = systemAction(u.code)}
-            <button
-              class="cap wide"
-              class:current={current(a)}
-              title={u.name}
-              {disabled}
-              onclick={() => assign(a)}>{u.legend}</button
-            >
-          {/each}
-        </div>
-      {:else}
-        <div class="row">
-          <label class="small" for="raw">{t("raw_bytes")}</label>
-          <input
-            id="raw"
-            type="text"
-            class="mono"
-            bind:value={raw}
-            spellcheck="false"
-            data-testid="raw-input"
-          />
-          <button
-            class="primary"
-            disabled={disabled || !rawValid}
-            onclick={() => assign({ type: "raw", hex: raw })}
-            data-testid="raw-assign">{t("assign")}</button
-          >
-        </div>
-        <p class="small muted">{t("raw_hint")}</p>
-      {/if}
+          <p class="small muted">{t("raw_hint")}</p>
+        {/if}
+      </div>
     </div>
   {/if}
 </section>
@@ -463,35 +475,47 @@
     color: var(--warn);
     margin: 0;
   }
+  /* VIA-like: the action categories in a column on the left, the picker fills the rest of the window. */
+  .body {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 164px minmax(0, 1fr);
+    gap: 0 18px;
+  }
   .tabs {
     display: flex;
-    align-items: flex-end;
-    gap: 2px;
-    border-bottom: 1px solid var(--line);
+    flex-direction: column;
+    gap: 1px;
+    padding: 2px 14px 2px 0;
+    border-right: 1px solid var(--line);
+    /* Short windows: the list scrolls rather than spilling under the window edge. */
+    overflow-y: auto;
+    min-height: 0;
   }
   .tab {
     border: 1px solid transparent;
-    border-bottom: none;
-    border-radius: 6px 6px 0 0;
-    padding: 5px 13px;
-    margin-bottom: -1px;
+    border-radius: 7px;
+    padding: 5px 12px;
     background: transparent;
+    font-size: 15px;
+    text-align: left;
   }
   .tab.active {
-    border-color: var(--line);
-    background: var(--paper);
+    background: color-mix(in srgb, var(--acc) 16%, var(--paper));
+    border-color: var(--acc);
+    color: var(--acc);
     font-weight: 600;
-    box-shadow: inset 0 2px 0 var(--acc);
   }
   .later {
-    margin-left: auto;
-    padding-bottom: 5px;
+    margin-top: auto;
+    padding: 6px 13px 0;
+    white-space: nowrap;
   }
   .panel {
     overflow-y: auto;
     min-height: 0;
-    flex: 1;
-    padding: 4px 0 18px;
+    padding: 4px 6px 18px 0;
     /* A row cut by the bottom edge fades out instead of ending in a hard slice; at the end of the scroll the
        padding keeps the last row clear of the fade. */
     mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
@@ -500,46 +524,76 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 8px;
+    margin-bottom: 10px;
   }
   .row input[type="search"] {
-    width: 220px;
+    width: 260px;
+    height: 36px;
     margin-right: 10px;
   }
-  .row input[type="number"] {
-    width: 64px;
-    margin-left: 4px;
-  }
   #raw {
-    width: 140px;
-  }
-  .groups {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 22px;
+    width: 160px;
+    height: 36px;
   }
   .group h3,
   .mouse h3,
   .panel > h3 {
     font: 500 12.5px var(--font-key);
-    margin: 4px 0 4px;
+    margin: 6px 0 6px;
+  }
+  /* Every cap is the same square whatever its text. The columns are fixed and spread over the full width, the
+     same for every group and tab, so the caps line up from group to group. */
+  .inspector {
+    --cap: 60px;
   }
   .grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 6px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, var(--cap));
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
   }
   .cap {
-    min-width: 34px;
-    height: 30px;
+    width: var(--cap);
+    height: var(--cap);
+    flex-direction: column;
     justify-content: center;
-    padding: 0 7px;
+    gap: 1px;
+    padding: 0 4px;
+    border-radius: 7px;
+    font-size: 14px;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  /* The Shift character above the plain one, as printed on the keycap. */
+  .shift {
     font-size: 13px;
   }
-  .cap.wide {
-    min-width: 64px;
+  .assign {
+    height: 40px;
+    padding: 0 18px;
+    font-size: 14.5px;
+  }
+  /* A group heading with its own setting (mouse step) on the same line. */
+  .sub {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 6px 0;
+  }
+  .sub h3 {
+    margin: 0;
+  }
+  .sub input {
+    width: 64px;
+    height: 30px;
+    margin-left: 4px;
+  }
+  .cap:hover:not(:disabled) {
+    background: var(--soft);
   }
   .cap.current {
     border-color: var(--acc);
@@ -547,6 +601,8 @@
     font-weight: 700;
   }
   .chip {
-    padding: 3px 9px;
+    height: 36px;
+    padding: 0 13px;
+    font-size: 14px;
   }
 </style>

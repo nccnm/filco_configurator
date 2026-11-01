@@ -46,6 +46,11 @@
     queueMicrotask(() => svg?.querySelector<SVGGElement>(`[data-i="${i}"]`)?.focus());
   }
 
+  /** Keycap text with the Shift character on its own line above, as printed on the key: "{" over "[". */
+  function stack(shifted: string | null | undefined, base: string): string {
+    return shifted ? `${shifted}\n${base}` : base;
+  }
+
   function aria(k: KeyView, s: SlotView | undefined): string {
     if (!s || s.kind === "empty") return k.legend;
     return `${k.legend}: ${s.long}`;
@@ -65,8 +70,9 @@
     {@const g = geo[i] ?? geometry(k)}
     {@const s = slots[i]}
     {@const empty = !s || s.kind === "empty"}
-    {@const text = s?.short ?? ""}
-    {@const showPrint = !empty && text !== k.legend}
+    {@const text = stack(s?.cap_shift, s?.short ?? "")}
+    {@const printed = stack(k.shifted, k.legend)}
+    {@const showPrint = !empty && s?.short !== k.legend}
     <g
       class="key"
       class:mkey={k.m_key}
@@ -87,15 +93,15 @@
       <rect class="outer" x={g.outer.x} y={g.outer.y} width={g.outer.w} height={g.outer.h} rx="7" />
       <rect class="inner" x={g.inner.x} y={g.inner.y} width={g.inner.w} height={g.inner.h} rx="5" />
       {#if empty}
-        {@const size = fit(k.legend, g.inner.w, 12)}
-        {#each lineYs(k.legend, g.cy, size) as y, li (li)}
+        {@const size = fit(printed, g.inner.w, 12)}
+        {#each lineYs(printed, g.cy, size) as y, li (li)}
           <text
             x={g.cx}
             {y}
             class="lg-faint"
             font-size={size}
             text-anchor="middle"
-            dominant-baseline="central">{k.legend.split("\n")[li]}</text
+            dominant-baseline="central">{printed.split("\n")[li]}</text
           >
         {/each}
       {:else}
