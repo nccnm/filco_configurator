@@ -5,8 +5,8 @@ use std::time::Duration;
 use filco_core::{PAGE_LEN, Page};
 
 use crate::packet::{
-    CHUNK_LEN, CHUNKS_PER_PAGE, CMD_FINISH, CMD_READ_PAGE, CMD_WRITE_PAGE, LEN_FINISH, LEN_PAGE, Report,
-    check_ack, command_packet, data_packet, report_sum,
+    CHUNK_LEN, CHUNKS_PER_PAGE, CMD_FINISH, CMD_INFO, CMD_READ_PAGE, CMD_WRITE_PAGE, LEN_FINISH, LEN_PAGE,
+    Report, check_ack, command_packet, data_packet, report_sum,
 };
 use crate::transport::{Clock, Transport, TransportError};
 
@@ -37,14 +37,17 @@ pub enum Phase {
     Write,
     /// Reading back a page just written.
     Verify,
+    /// Reading the firmware info block (command 0x30).
+    Info,
 }
 
-/// Progress of the page currently being transferred.
+/// Progress of the page or block currently being transferred.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Progress {
+    /// Layer being read or written; 0 for the info block, which has no layer.
     pub layer: u8,
     pub phase: Phase,
-    /// Reports exchanged so far in this page session, out of `total`.
+    /// Reports exchanged so far in this session, out of `total`.
     pub done: u8,
     pub total: u8,
 }
@@ -167,23 +170,27 @@ impl<T: Transport, C: Clock> Session<T, C> {
         }
     }
 
-    fn read_page_once(
+    /// One read session (ACK, 8 data reports, finish with checksum) for any read command. `layer` is `Some`
+    /// for a page read (0x10) and `None` for the info block (0x30). Returns the 512 raw bytes.
+    fn read_session_once(
         &mut self,
-        layer: u8,
+        cmd: u8,
+        layer: Option<u8>,
         phase: Phase,
         delay: Duration,
         progress: &mut dyn FnMut(Progress),
-    ) -> Result<Page, ProtocolError> {
+    ) -> Result<[u8; PAGE_LEN], ProtocolError> {
+        let report_layer = layer.unwrap_or(0);
         let mut tick = |done: u8| {
             progress(Progress {
-                layer,
+                layer: report_layer,
                 phase,
                 done,
                 total: REPORTS_PER_SESSION,
             });
         };
         let mut sum = 0u32;
-        self.command(CMD_READ_PAGE, LEN_PAGE, Some(layer), delay)?;
+        self.command(cmd, LEN_PAGE, layer, delay)?;
         tick(2);
         let mut bytes = [0u8; PAGE_LEN];
         for (i, chunk) in bytes.as_chunks_mut::<CHUNK_LEN>().0.iter_mut().enumerate() {
@@ -194,7 +201,33 @@ impl<T: Transport, C: Clock> Session<T, C> {
         }
         self.finish(sum, delay)?;
         tick(REPORTS_PER_SESSION);
+        Ok(bytes)
+    }
+
+    fn read_page_once(
+        &mut self,
+        layer: u8,
+        phase: Phase,
+        delay: Duration,
+        progress: &mut dyn FnMut(Progress),
+    ) -> Result<Page, ProtocolError> {
+        let bytes = self.read_session_once(CMD_READ_PAGE, Some(layer), phase, delay, progress)?;
         Ok(Page::from_bytes(&bytes).unwrap_or_else(|_| Page::empty()))
+    }
+
+    /// Reads the firmware info block (command 0x30): the same read session as a page, with no layer. Returns the
+    /// 512 raw bytes, or `None` when the firmware does not know the command (it NACKs 0x30) - that is how a host
+    /// tells a stock or older-patched image, which has no info block, apart from one that has one. Not retried.
+    pub fn read_info(
+        &mut self,
+        progress: &mut dyn FnMut(Progress),
+    ) -> Result<Option<[u8; PAGE_LEN]>, ProtocolError> {
+        let delay = self.delays.read;
+        match self.read_session_once(CMD_INFO, None, Phase::Info, delay, progress) {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(ProtocolError::NoAck { cmd, .. }) if cmd == CMD_INFO => Ok(None),
+            Err(e) => Err(e),
+        }
     }
 
     /// Reads one layer page: 0x10, 8 data reports, 0x02 with checksum. Retries [`READ_RETRIES`] times after a

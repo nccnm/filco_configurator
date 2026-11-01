@@ -15,8 +15,8 @@
 
 use filco_core::{PAGE_LEN, Page};
 use filco_protocol::{
-    CHUNK_LEN, CHUNKS_PER_PAGE, CMD_FINISH, CMD_READ_PAGE, CMD_WRITE_PAGE, LEN_PAGE, REPORT_LEN, Report,
-    Transport, TransportError, parse_command, report_sum,
+    CHUNK_LEN, CHUNKS_PER_PAGE, CMD_FINISH, CMD_INFO, CMD_READ_PAGE, CMD_WRITE_PAGE, LEN_PAGE, REPORT_LEN,
+    Report, Transport, TransportError, parse_command, report_sum,
 };
 use serde::{Deserialize, Serialize};
 
@@ -85,6 +85,8 @@ struct Current {
 #[derive(Clone, Debug)]
 pub struct SimKeyboard {
     flash: Vec<Page>,
+    /// The firmware info block returned by command 0x30. `None` models stock firmware, which NACKs 0x30.
+    info: Option<[u8; PAGE_LEN]>,
     current: Option<Current>,
     pending: Option<Report>,
     faults: Vec<Fault>,
@@ -109,6 +111,7 @@ impl SimKeyboard {
     pub fn new(pages: Vec<Page>) -> Self {
         SimKeyboard {
             flash: pages,
+            info: None,
             current: None,
             pending: None,
             faults: Vec::new(),
@@ -123,6 +126,19 @@ impl SimKeyboard {
     /// A keyboard with `layers` empty pages.
     pub fn blank(layers: usize) -> Self {
         Self::new(vec![Page::empty(); layers])
+    }
+
+    /// Give this keyboard a firmware info block, so command 0x30 returns it (a patched image). Without one,
+    /// 0x30 is an unknown command and goes unacknowledged, like stock firmware.
+    #[must_use]
+    pub fn with_info_block(mut self, block: [u8; PAGE_LEN]) -> Self {
+        self.info = Some(block);
+        self
+    }
+
+    /// Whether this keyboard answers command 0x30 with an info block.
+    pub fn has_info_block(&self) -> bool {
+        self.info.is_some()
     }
 
     #[must_use]
@@ -251,6 +267,26 @@ impl SimKeyboard {
             self.pending = Some(reply);
             return Ok(());
         }
+        if cmd == CMD_INFO {
+            // 0x30 reads the info block: a read session with no layer. Without a block (stock firmware) the
+            // command is unknown and goes unacknowledged.
+            if len != LEN_PAGE || self.info.is_none() {
+                self.current = None;
+                self.pending = Some([0u8; REPORT_LEN]);
+                return Ok(());
+            }
+            self.current = Some(Current {
+                cmd,
+                nth: 0,
+                layer: 0,
+                chunk: 0,
+                sum: 0,
+                buf: [0; PAGE_LEN],
+            });
+            self.exchange_fault(Stage::Command)?;
+            self.pending = Some(ack(cmd, len, 0));
+            return Ok(());
+        }
         let Some(si) = Self::session_index(cmd).filter(|_| len == LEN_PAGE) else {
             // Unknown command: no acknowledgement.
             self.current = None;
@@ -343,8 +379,8 @@ impl Transport for SimKeyboard {
             self.rec(Direction::Get, &reply);
             return Ok(reply);
         }
-        let streaming =
-            matches!(&self.current, Some(c) if c.cmd == CMD_READ_PAGE && c.chunk < CHUNKS_PER_PAGE);
+        let streaming = matches!(&self.current,
+            Some(c) if (c.cmd == CMD_READ_PAGE || c.cmd == CMD_INFO) && c.chunk < CHUNKS_PER_PAGE);
         if !streaming {
             let r = [0u8; REPORT_LEN];
             self.rec(Direction::Get, &r);
@@ -359,9 +395,15 @@ impl Transport for SimKeyboard {
             .take_fault(Stage::Data { n }, &[FaultKind::CorruptData])
             .is_some();
         let mut r = [0u8; REPORT_LEN];
-        if let Some(cur) = self.current.as_mut() {
+        if let Some(cur) = self.current.as_ref() {
             let off = cur.chunk * CHUNK_LEN;
-            r[1..].copy_from_slice(&self.flash[cur.layer].as_bytes()[off..off + CHUNK_LEN]);
+            let src = match cur.cmd {
+                CMD_INFO => &self.info.as_ref().expect("info session needs a block")[off..off + CHUNK_LEN],
+                _ => &self.flash[cur.layer].as_bytes()[off..off + CHUNK_LEN],
+            };
+            r[1..].copy_from_slice(src);
+        }
+        if let Some(cur) = self.current.as_mut() {
             // The device sums what it sends; a corrupted report changes on the way, after the sum.
             cur.sum = cur.sum.wrapping_add(report_sum(&r));
             cur.chunk += 1;

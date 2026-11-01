@@ -21,8 +21,8 @@ mod session;
 mod transport;
 
 pub use packet::{
-    Ack, CHUNK_LEN, CHUNKS_PER_PAGE, CMD_FINISH, CMD_READ_PAGE, CMD_WRITE_PAGE, LEN_FINISH, LEN_PAGE,
-    REPORT_LEN, Report, check_ack, command_packet, data_packet, parse_command, report_sum,
+    Ack, CHUNK_LEN, CHUNKS_PER_PAGE, CMD_FINISH, CMD_INFO, CMD_READ_PAGE, CMD_WRITE_PAGE, LEN_FINISH,
+    LEN_PAGE, REPORT_LEN, Report, check_ack, command_packet, data_packet, parse_command, report_sum,
 };
 pub use policy::{PolicyTransport, WritePolicy};
 pub use session::{Delays, Phase, Progress, ProtocolError, Session};

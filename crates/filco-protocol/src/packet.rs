@@ -9,6 +9,9 @@ pub const CHUNKS_PER_PAGE: usize = 8;
 pub const CMD_FINISH: u8 = 0x02;
 pub const CMD_READ_PAGE: u8 = 0x10;
 pub const CMD_WRITE_PAGE: u8 = 0x11;
+/// Read the firmware info block: a read session (ACK, 8 data reports, finish) over a patched V72 image, with no
+/// layer. Stock firmware does not know this command and NACKs it, which is how a host tells there is no block.
+pub const CMD_INFO: u8 = 0x30;
 
 /// Parameter length byte `[9]` of each command.
 pub const LEN_PAGE: u8 = 8;

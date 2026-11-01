@@ -1,12 +1,13 @@
 //! A guard in front of a transport that refuses every report the current policy does not allow.
 
-use crate::packet::{CMD_FINISH, CMD_READ_PAGE, LEN_FINISH, LEN_PAGE, Report, parse_command};
+use crate::packet::{CMD_FINISH, CMD_INFO, CMD_READ_PAGE, LEN_FINISH, LEN_PAGE, Report, parse_command};
 use crate::transport::{Transport, TransportError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WritePolicy {
-    /// Only the command packets of a page read session may be sent: 0x10 (read page, len 8, layer) and 0x02
-    /// (finish, len 0). Data packets and every other command are refused before reaching the device.
+    /// Only the command packets of a read session may be sent: 0x10 (read page, len 8, layer), 0x30 (read the
+    /// info block, len 8) and 0x02 (finish, len 0). Data packets and every other command are refused before
+    /// reaching the device.
     ReadOnly,
     /// Everything the protocol sends is allowed. Used only while a confirmed write is in progress.
     ReadWrite,
@@ -58,7 +59,9 @@ impl<T: Transport> PolicyTransport<T> {
         match self.policy {
             WritePolicy::ReadWrite => Ok(()),
             WritePolicy::ReadOnly => match parse_command(report) {
-                Some((CMD_READ_PAGE, LEN_PAGE, _) | (CMD_FINISH, LEN_FINISH, 0)) => Ok(()),
+                Some(
+                    (CMD_READ_PAGE, LEN_PAGE, _) | (CMD_INFO, LEN_PAGE, 0) | (CMD_FINISH, LEN_FINISH, 0),
+                ) => Ok(()),
                 Some((cmd, len, layer)) => Err(format!(
                     "command {cmd:#04x} (len {len}, layer {layer}) is not allowed in read-only mode"
                 )),
@@ -137,14 +140,16 @@ mod tests {
     }
 
     #[test]
-    fn every_command_byte_other_than_read_and_finish_is_refused() {
+    fn every_command_byte_other_than_read_info_and_finish_is_refused() {
         let mut t = PolicyTransport::new(Recorder::default(), WritePolicy::ReadOnly);
         for cmd in 0..=255u8 {
             for len in [0u8, 1, 2, 4, 5, 8] {
                 let ok = t.set_feature(&command_packet(cmd, len, Some(0))).is_ok();
                 assert_eq!(
                     ok,
-                    (cmd, len) == (CMD_READ_PAGE, LEN_PAGE) || (cmd, len) == (CMD_FINISH, LEN_FINISH)
+                    (cmd, len) == (CMD_READ_PAGE, LEN_PAGE)
+                        || (cmd, len) == (CMD_INFO, LEN_PAGE)
+                        || (cmd, len) == (CMD_FINISH, LEN_FINISH)
                 );
             }
         }
