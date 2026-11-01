@@ -28,6 +28,41 @@ fn dev_firmware_dir() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../firmware")
 }
 
+/// Window height on first open (logical px), so the inspector under the keyboard shows without resizing. The
+/// config keeps 1280 x 800, which the E2E screenshots use; a real build grows the window up to this height,
+/// within the monitor's work area, and centres it there.
+#[cfg(not(feature = "e2e-sim"))]
+const OPEN_HEIGHT: f64 = 1000.0;
+
+#[cfg(not(feature = "e2e-sim"))]
+fn fit_window(tauri_app: &tauri::App) {
+    use tauri::Manager as _;
+    let Some(w) = tauri_app.get_webview_window("main") else {
+        return;
+    };
+    let (Ok(Some(monitor)), Ok(size)) = (w.current_monitor(), w.inner_size()) else {
+        return;
+    };
+    let scale = monitor.scale_factor();
+    let work = monitor.work_area();
+    let area = work.size.to_logical::<f64>(scale);
+    let top = work.position.to_logical::<f64>(scale);
+    let inner = size.to_logical::<f64>(scale);
+    let outer = w.outer_size().unwrap_or(size).to_logical::<f64>(scale);
+    // Title bar and frame, so the whole window fits above the taskbar.
+    let frame_w = (outer.width - inner.width).max(0.0);
+    let frame_h = (outer.height - inner.height).max(0.0);
+    let height = OPEN_HEIGHT.min(area.height - frame_h).max(inner.height);
+    if height > inner.height {
+        let _ = w.set_size(tauri::LogicalSize::new(inner.width, height));
+        // Centred in the work area: centring on the whole screen would put the bottom under the taskbar.
+        let _ = w.set_position(tauri::LogicalPosition::new(
+            top.x + ((area.width - inner.width - frame_w) / 2.0).max(0.0),
+            top.y + ((area.height - height - frame_h) / 2.0).max(0.0),
+        ));
+    }
+}
+
 #[cfg(feature = "e2e-sim")]
 fn backend() -> (Arc<dyn Backend>, filco_service::backend::SimBackend, Paths, bool) {
     let sim = commands::e2e::initial_sim();
@@ -113,6 +148,8 @@ fn main() {
                     Err(e) => eprintln!("device notifications unavailable: {e}"),
                 }
             }
+            #[cfg(not(feature = "e2e-sim"))]
+            fit_window(tauri_app);
             let _ = tauri_app.handle().emit("backend-ready", ());
             Ok(())
         })
