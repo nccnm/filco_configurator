@@ -26,7 +26,13 @@ pub struct TestRun {
 /// Runs every scenario on `build`. An `Err` means the emulator stopped (unsupported instruction, a call that
 /// did not return): the image is not proven and must not be flashed.
 pub fn run(build: &Build) -> Result<TestRun, Stop> {
-    let mut out = scenarios::Out::default();
+    run_streaming(build, &mut |_| {})
+}
+
+/// [`run`], handing each report line to `on_line` as soon as it is written, so a UI can show which test is
+/// running. The lines are also in the result.
+pub fn run_streaming(build: &Build, on_line: &mut dyn FnMut(&str)) -> Result<TestRun, Stop> {
+    let mut out = scenarios::Out::streaming(on_line);
     let passed = scenarios::run_all(build, &mut out)?;
     Ok(TestRun {
         passed,

@@ -145,3 +145,55 @@ describe("visual baselines", () => {
     });
   });
 });
+
+describe("visual baselines: firmware mode", () => {
+  let app;
+  before(async () => {
+    app = await openApp();
+    await vietnamese(app.browser);
+    await waitState(app.browser, "ready");
+    await sim(app.browser, "info_on");
+    await sim(app.browser, "unplug");
+    await sim(app.browser, "replug");
+    await waitState(app.browser, "ready");
+    await click(app.browser, "fw-tab");
+  });
+  after(async () => app?.close());
+
+  for (const theme of ["light", "dark"]) {
+    it(`firmware mode ${theme}`, async () => {
+      const { browser } = app;
+      await setTheme(browser, theme);
+      await click(browser, "fwkey-S");
+      await waitIdle(browser);
+      await check(browser, `fw-mode-${theme}`);
+    });
+  }
+
+  it("tap-hold section of a firmware key", async () => {
+    const { browser } = app;
+    await setTheme(browser, "light");
+    await click(browser, "fwkey-Caps");
+    await waitIdle(browser);
+    await check(browser, "fw-taphold-light");
+  });
+
+  it("an edited Fn key and the build dialog", async () => {
+    const { browser } = app;
+    await click(browser, "fwkey-O");
+    await click(browser, "fw-code-4a");
+    await waitIdle(browser);
+    await check(browser, "fw-edited-light");
+    await click(browser, "fw-build");
+    await (await byTest(browser, "fw-build-dialog")).waitForDisplayed({ timeout: 5000 });
+    await waitIdle(browser);
+    await check(browser, "fw-build-form-light");
+    await click(browser, "fw-build-start");
+    await (await byTest(browser, "fw-build-passed")).waitForDisplayed({ timeout: 60000 });
+    await waitIdle(browser);
+    await check(browser, "fw-build-passed-light");
+    await setTheme(browser, "dark");
+    await check(browser, "fw-build-passed-dark");
+    await setTheme(browser, "light");
+  });
+});

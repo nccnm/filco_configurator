@@ -89,24 +89,19 @@ pub fn run(
     }
     let diff = dir.join("PATCH_DIFF.txt");
     std::fs::write(&diff, crlf_text(&report)).map_err(io(&diff))?;
-    let mut out = |report: &mut Vec<String>, s: String| {
-        progress(&s);
-        report.push(s);
-    };
-    out(&mut report, String::new());
-    let passed = match filco_fwtest::run(&b) {
+    emit(progress, &mut report, String::new());
+    // Test lines reach `progress` as each test runs; they join the report once the run is over.
+    let passed = match filco_fwtest::run_streaming(&b, &mut |l| progress(l)) {
         Ok(t) => {
-            for l in t.lines {
-                out(&mut report, l);
-            }
+            report.extend(t.lines);
             t.passed
         }
         Err(e) => {
-            out(&mut report, format!("  emulator stopped: {e}"));
+            emit(progress, &mut report, format!("  emulator stopped: {e}"));
             false
         }
     };
-    out(&mut report, String::new());
+    emit(progress, &mut report, String::new());
     let test_report = dir.join("TEST_REPORT.txt");
     let mut updater = None;
     if passed {
@@ -122,19 +117,22 @@ pub fn run(
             &exe,
             &format!("_{name}"),
         )? {
-            out(&mut report, format!("  {l}"));
+            emit(progress, &mut report, format!("  {l}"));
         }
-        out(
+        emit(
+            progress,
             &mut report,
             format!("All tests passed. Updater: {}", exe.display()),
         );
-        out(
+        emit(
+            progress,
             &mut report,
             format!("Before pressing Start, the updater must show CheckSum : 0x{tag:04X}"),
         );
         updater = Some(exe);
     } else {
-        out(
+        emit(
+            progress,
             &mut report,
             "TESTS FAILED: no updater built. Fix the config or the tool before flashing anything.".into(),
         );
@@ -153,4 +151,10 @@ pub fn run(
         passed,
         report,
     })
+}
+
+/// Hands a report line to `progress` and keeps it for the report.
+fn emit(progress: &mut dyn FnMut(&str), report: &mut Vec<String>, s: String) {
+    progress(&s);
+    report.push(s);
 }

@@ -136,6 +136,133 @@ code: string | null, };
 
 export type FirmwareView = { name: string, tap_holds: Array<TapHoldView>, fn_edits: Array<FirmwareEditView>, keymap_edits: Array<FirmwareEditView>, };
 
+export type FwCodeView = { code: number, 
+/**
+ * Keycap text; empty when `icon` is set.
+ */
+legend: string, 
+/**
+ * `lclick`, `rclick`, `mup`, `mdown`, `mleft`, `mright`, `wheelup`, `wheeldown`, `mute`, `voldown`, `volup`,
+ * `menu`.
+ */
+icon: string | null, 
+/**
+ * Full name for the inspector and tooltips.
+ */
+name: string, };
+
+export type FwHoldView = { "type": "key", code: number, } | { "type": "layer", layer: number, };
+
+export type FwTapHoldView = { tap: number, hold: FwHoldView, term_ms: number, };
+
+export type FwKeyView = { index: number, 
+/**
+ * Fn + key now; `None` when the key has no Fn function.
+ */
+fn_code: FwCodeView | null, fn_base: FwCodeView | null, fn_stock: FwCodeView | null, default: FwCodeView, default_base: FwCodeView, default_stock: FwCodeView, tap_hold: FwTapHoldView | null, 
+/**
+ * Keycap texts of the tap-hold: hold (`Ctrl`, `→ L3`) above, tap in the middle.
+ */
+tap_label: string | null, hold_label: string | null, 
+/**
+ * Differs from what the keyboard holds (not built and flashed yet).
+ */
+changed: boolean, 
+/**
+ * Differs from stock V72.
+ */
+custom: boolean, 
+/**
+ * `layout_specific`, `fn_key`, `tap_hold`.
+ */
+fn_locked: string | null, 
+/**
+ * `has_fn`, `fn_key`.
+ */
+tap_hold_locked: string | null, };
+
+export type FwStepView = { 
+/**
+ * `image`, `keys`, `fn`, `layers`, `tap_hold`, `info`, `stack`, `updater`.
+ */
+id: string, ok: number, fail: number, };
+
+export type FwBuildView = { name: string, running: boolean, steps: Array<FwStepView>, 
+/**
+ * Set when finished.
+ */
+passed: boolean | null, tag: number | null, dir: string | null, has_updater: boolean, 
+/**
+ * Failed report lines (when not passed).
+ */
+failures: Array<string>, 
+/**
+ * The whole report, for "show report".
+ */
+report: Array<string>, 
+/**
+ * The pipeline could not run (I/O, refused config).
+ */
+error: string | null, 
+/**
+ * The draft changed after this build: it can no longer be flashed from here.
+ */
+stale: boolean, };
+
+export type FwFlashView = { name: string, tag: number, 
+/**
+ * `ready` (backup done, Assist closed), `waiting` (updater started, waiting for the keyboard to come back),
+ * `done` (checked after flashing).
+ */
+step: string, backup: string | null, 
+/**
+ * The keyboard went away after the updater started (it is being flashed).
+ */
+saw_unplug: boolean, 
+/**
+ * After flashing: the firmware on the keyboard is the build.
+ */
+firmware_ok: boolean | null, 
+/**
+ * After flashing: name the keyboard reports (`None`: no info block).
+ */
+firmware_name: string | null, 
+/**
+ * After flashing: layers that differ from the backup.
+ */
+layers_changed: Array<number>, };
+
+export type FwBuiltView = { name: string, dir: string, tag: number | null, passed: boolean, 
+/**
+ * Seconds since the epoch (a JSON number, well inside the safe integer range).
+ */
+modified: number, 
+/**
+ * This build is what the keyboard runs now.
+ */
+on_keyboard: boolean, };
+
+export type FwView = { 
+/**
+ * The stock firmware shipped with the app could not be loaded: firmware mode is unavailable.
+ */
+stock_error: string | null, 
+/**
+ * Name and checksum of the firmware on the keyboard; `None` when it has no info block (stock V72 or an
+ * older patched build).
+ */
+on_keyboard: string | null, on_keyboard_tag: number | null, keys: Array<FwKeyView>, 
+/**
+ * Keys that differ from the keyboard.
+ */
+changes: number, can_undo: boolean, can_redo: boolean, fn_slots_used: number, fn_slots: number, tap_key_used: number, tap_layer_used: number, 
+/**
+ * Index of the Fn key.
+ */
+fn_key: number, suggested_name: string, build: FwBuildView | null, flash: FwFlashView | null, };
+
+export type FwEditInput = { "type": "set_fn", key: number, code: number | null, } | { "type": "set_default", key: number, code: number, } | { "type": "set_tap_hold", key: number, tap_hold: FwTapHoldView | null, } | { "type": "key_to_base", key: number, } | { "type": "key_to_stock", key: number, };
+
 export type Snapshot = { phase: Phase, lang: UiLang, devices: Array<DeviceView>, device: DeviceView | null, model_id: string | null, 
 /**
  * `layers[layer][i]` is the slot of `model.keys[i]`.
@@ -144,7 +271,11 @@ layers: Array<Array<SlotView>>, changes: Array<ChangeView>, can_undo: boolean, c
 /**
  * What the connected firmware reports it changed (command 0x30); `None` when it has no info block.
  */
-firmware: FirmwareView | null, error: ErrorView | null, simulated: boolean, };
+firmware: FirmwareView | null, 
+/**
+ * Firmware mode (draft, build, flash); `None` until the keyboard was read.
+ */
+fw: FwView | null, error: ErrorView | null, simulated: boolean, };
 
 export type BackupView = { name: string, path: string, created: string, reason: string | null, problem: string | null, };
 
@@ -168,6 +299,10 @@ export type ConsumerUsageView = { code: number, legend: string, name: string, fi
 
 export type SystemUsageView = { code: number, legend: string, name: string, };
 
-export type Catalog = { keys: Array<KeyUsageView>, consumer: Array<ConsumerUsageView>, system: Array<SystemUsageView>, };
+export type Catalog = { keys: Array<KeyUsageView>, consumer: Array<ConsumerUsageView>, system: Array<SystemUsageView>, 
+/**
+ * Firmware-only codes for Fn + key (mouse, volume), in Vietnamese and English.
+ */
+fw_special: Array<FwCodeView>, fw_special_en: Array<FwCodeView>, };
 
 export type Action = { "type": "empty" } | { "type": "key", mods: number, usage: number, } | { "type": "mouse_click", buttons: number, } | { "type": "mouse_scroll", amount: number, } | { "type": "mouse_move", dx: number, dy: number, } | { "type": "consumer", usage: number, } | { "type": "system", usage: number, } | { "type": "raw", hex: string, };

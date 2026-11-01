@@ -11,6 +11,8 @@ workspace = true
 
 [dependencies]
 filco-core = { path = "../filco-core" }
+filco-firmware = { path = "../filco-firmware" }
+filco-fwbuild = { path = "../filco-fwbuild" }
 filco-fwinfo = { path = "../filco-fwinfo" }
 filco-protocol = { path = "../filco-protocol" }
 filco-sim = { path = "../filco-sim" }

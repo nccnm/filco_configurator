@@ -7,9 +7,11 @@
   --faint: #b9bec3;
   --soft: #eef0f1;
   --c-l1: #b4532a;
-  --c-l2: #2f63b0;
+  --c-l2: #a3367c;
   --c-l3: #2e7d4f;
   --c-l4: #6a4aa5;
+  /* Firmware mode; blue belongs to it alone (layer 2 was blue before). */
+  --c-fw: #0a85bd;
   --warn: #8a6a12;
   --bad: #b3261e;
   --good: #2e7d4f;
@@ -33,9 +35,10 @@
     --faint: #4a5058;
     --soft: #1f2327;
     --c-l1: #e08a5c;
-    --c-l2: #7fa8e8;
+    --c-l2: #e48cc4;
     --c-l3: #6cc28f;
     --c-l4: #b49ae6;
+    --c-fw: #4fc1f0;
     --warn: #d4b45a;
     --bad: #f2a29b;
     --good: #6cc28f;
@@ -54,9 +57,10 @@
   --faint: #4a5058;
   --soft: #1f2327;
   --c-l1: #e08a5c;
-  --c-l2: #7fa8e8;
+  --c-l2: #e48cc4;
   --c-l3: #6cc28f;
   --c-l4: #b49ae6;
+  --c-fw: #4fc1f0;
   --warn: #d4b45a;
   --bad: #f2a29b;
   --good: #6cc28f;
@@ -99,6 +103,9 @@ body {
 }
 .l3 {
   --acc: var(--c-l4);
+}
+.fw {
+  --acc: var(--c-fw);
 }
 
 button {

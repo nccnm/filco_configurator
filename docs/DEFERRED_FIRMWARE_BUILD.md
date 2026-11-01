@@ -1,8 +1,9 @@
 # Task hoãn: dựng ảnh firmware tùy biến trong ứng dụng
 
-## Trạng thái (2026-11-01): phần A-D xong, chưa tích hợp vào giao diện
+## Trạng thái (2026-11-01): phần A-D xong, đã tích hợp vào giao diện
 
-Nhánh `feat/firmware-build`. Bốn phần A-D đã port sang Rust và đạt tiêu chí so với golden. Việc dựng firmware giờ
+Nhánh `feat/firmware-build`. Trang "Firmware" của ứng dụng (thiết kế và trạng thái ở `docs/FIRMWARE_UI_DESIGN.md`)
+dùng pipeline dưới đây để sửa, dựng, kiểm thử và mở trình cập nhật. Bốn phần A-D đã port sang Rust và đạt tiêu chí so với golden. Việc dựng firmware giờ
 chạy hoàn toàn trong Rust, không cần Python, Keystone hay Unicorn:
 
 | Phần | Crate | Kết quả so với golden |

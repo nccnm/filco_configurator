@@ -23,6 +23,11 @@ pub struct State {
     pub started: std::time::SystemTime,
 }
 
+/// The repository's `firmware/` (stock HEX and updater), used when no bundled copy is found (dev runs, E2E).
+fn dev_firmware_dir() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../firmware")
+}
+
 #[cfg(feature = "e2e-sim")]
 fn backend() -> (Arc<dyn Backend>, filco_service::backend::SimBackend, Paths, bool) {
     let sim = commands::e2e::initial_sim();
@@ -34,6 +39,7 @@ fn backend() -> (Arc<dyn Backend>, filco_service::backend::SimBackend, Paths, bo
         backups: root.join("backups"),
         state: root.clone(),
         assist_config: None,
+        firmware: Some(dev_firmware_dir()),
     };
     (Arc::new(sim.clone()), sim, paths, true)
 }
@@ -46,6 +52,7 @@ fn backend() -> (Arc<dyn Backend>, Paths, bool) {
             backups: tmp.join("backups"),
             state: tmp,
             assist_config: None,
+            firmware: None,
         }
     });
     (Arc::new(win_backend::WindowsBackend), paths, false)
@@ -58,7 +65,14 @@ fn main() {
     let (backend, sim, paths, simulated) = backend();
     #[cfg(not(feature = "e2e-sim"))]
     let (backend, paths, simulated) = backend();
-    let app = Arc::new(Mutex::new(App::new(backend, &paths, simulated)));
+    let app = App::new(backend, &paths, simulated);
+    #[cfg(feature = "e2e-sim")]
+    let app = {
+        let mut app = app;
+        app.set_launcher(commands::e2e::launcher(sim.clone()));
+        app
+    };
+    let app = Arc::new(Mutex::new(app));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -69,7 +83,22 @@ fn main() {
             #[cfg(feature = "e2e-sim")]
             started,
         })
-        .setup(|tauri_app| {
+        .setup(move |tauri_app| {
+            // The stock firmware and updater ship as bundle resources; a dev run uses the repository's copy.
+            #[cfg(not(feature = "e2e-sim"))]
+            {
+                use tauri::Manager as _;
+                let dir = tauri_app
+                    .path()
+                    .resource_dir()
+                    .map(|d| d.join("firmware"))
+                    .ok()
+                    .filter(|d| d.join(filco_firmware::STOCK_HEX_NAME).is_file())
+                    .unwrap_or_else(dev_firmware_dir);
+                app.lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .set_firmware_dir(&dir);
+            }
             // Plug and unplug: tell the UI, which asks for a refresh.
             #[cfg(all(windows, not(feature = "e2e-sim")))]
             {

@@ -52,8 +52,9 @@ Phím trên hình: viền màu layer là ô đã gán (khác ô trống), chấm
 
 ### An toàn
 
-- Không bao giờ nạp firmware; không gửi lệnh nào ngoài đọc trang (0x10), đọc khối thông tin firmware (0x30), ghi
+- Ứng dụng không tự nạp firmware; không gửi lệnh nào ngoài đọc trang (0x10), đọc khối thông tin firmware (0x30), ghi
   trang (0x11) và kết thúc (0x02). Tầng truyền chặn ở mức code mọi gói ghi khi không ở trong luồng ghi đã xác nhận.
+  Nạp firmware chỉ qua trình cập nhật chính hãng, mở khi người dùng bấm, và người dùng tự bấm Start.
 - Nếu ứng dụng hay máy tắt giữa lúc ghi, lần mở sau nó đọc bàn phím, so với bản sao lưu và với nội dung định ghi, rồi
   đề nghị khôi phục.
 - Layer gắn với profile của FILCO Assist (đọc `%APPDATA%\FILCO\filco_assist_config.json`, chỉ đọc) được cảnh báo:
@@ -66,8 +67,27 @@ Nếu bàn phím đang chạy một bản firmware tùy biến có khối thông
 thay đổi đó: phím tap-hold vẽ hành động khi giữ (nhỏ, phía trên) và khi gõ nhanh (nhãn chính), phím "giữ để vào
 layer" được tô đậm trên layer đó, và inspector hiện chi tiết tap-hold cùng các thay đổi Fn + phím. Ô layer của phím
 tap-hold bị khóa vì firmware quyết định. Firmware gốc (hay bản vá cũ không có khối) trả NACK và ứng dụng chỉ không
-hiện phần này. Việc **dựng** firmware tùy biến chạy bằng lệnh dòng lệnh (offline, không mở bàn phím, không chạy
-trình cập nhật), chưa có trong giao diện:
+hiện phần này.
+
+### Trang Firmware: sửa, dựng, kiểm thử, nạp
+
+Tab **Firmware** (sau Layer 4) sửa phần nằm trong firmware: Fn + phím, keymap mặc định và tap-hold. Thiết kế:
+`docs/FIRMWARE_UI_DESIGN.md`.
+
+1. Bàn phím trên hình vẽ Fn + phím: chức năng Fn là nhãn lớn, tên phím nhỏ ở trên, phím không có chức năng Fn để trống.
+   Nhấp chuột, di chuyển chuột, cuộn và âm lượng vẽ bằng icon như manual. Chọn một phím rồi sửa ở bảng dưới
+   (Tap-hold, Fn + phím, Mặc định). Mỗi thay đổi được vá thử ngay trên firmware V72 gốc; thay đổi firmware không cho
+   phép (hết 39 mục Fn, phím Fn, W/R/X/C phụ thuộc bố cục...) bị từ chối kèm lý do.
+2. Bản nháp tự lưu (`%LOCALAPPDATA%\FilcoConfigurator\firmware_draft.toml`); Ctrl+Z / Ctrl+Y, xuất / nhập TOML ở menu
+   **Thêm**. Bản nháp bắt đầu từ cấu hình đang chạy trên bàn phím (đọc từ khối thông tin), hoặc V72 gốc nếu không có.
+3. **Dựng và kiểm thử**: đặt tên rồi dựng (3-4 giây). Firmware được chạy trên giả lập (so từng phím với bản gốc, Fn,
+   đổi layer, tap-hold, lệnh 0x30, độ sâu stack); trình cập nhật chỉ được tạo khi mọi kiểm thử đạt. Kết quả ở
+   `%LOCALAPPDATA%\FilcoConfigurator\firmware\<tên>\`. Khối thông tin luôn được thêm.
+4. **Nạp lên bàn phím...**: ứng dụng sao lưu 4 layer, kiểm FILCO Assist đã thoát, rồi mở trình cập nhật chính hãng.
+   Người dùng kiểm dòng `CheckSum` đúng số ứng dụng hiện, rồi tự bấm Start. Bàn phím khởi động lại; ứng dụng đọc khối
+   thông tin, xác nhận đúng bản vừa dựng và báo layer nào bị đổi so với trước khi nạp.
+
+Dựng không cần giao diện (offline, không mở bàn phím, không chạy trình cập nhật):
 
 ```powershell
 cargo run --release -p filco-cli -- firmware-build <config.toml> [--stock firmware] [--out out]

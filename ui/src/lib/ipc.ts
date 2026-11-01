@@ -1,7 +1,17 @@
 // Typed wrappers around the Tauri commands of src-tauri/src/commands.rs.
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { Action, BackupView, Catalog, ModelView, ProgressView, Snapshot, UiLang } from "../bindings/ipc";
+import type {
+  Action,
+  BackupView,
+  Catalog,
+  FwBuiltView,
+  FwEditInput,
+  ModelView,
+  ProgressView,
+  Snapshot,
+  UiLang,
+} from "../bindings/ipc";
 
 export const ipc = {
   snapshot: () => invoke<Snapshot>("snapshot"),
@@ -30,6 +40,21 @@ export const ipc = {
   exportFile: () => invoke<Snapshot>("export_file"),
   importFile: () => invoke<Snapshot>("import_file"),
   loadBackupFolder: () => invoke<Snapshot>("load_backup_folder"),
+  fwEdit: (edit: FwEditInput) => invoke<Snapshot>("fw_edit", { edit }),
+  fwUndo: () => invoke<Snapshot>("fw_undo"),
+  fwRedo: () => invoke<Snapshot>("fw_redo"),
+  fwRevert: () => invoke<Snapshot>("fw_revert"),
+  /** Resolves when the build finished; `fw-build` events announce report lines meanwhile. */
+  fwBuild: (name: string) => invoke<Snapshot>("fw_build", { name }),
+  fwCloseBuild: () => invoke<Snapshot>("fw_close_build"),
+  fwFlashPrepare: () => invoke<Snapshot>("fw_flash_prepare"),
+  fwFlashLaunch: () => invoke<Snapshot>("fw_flash_launch"),
+  fwFlashClose: () => invoke<Snapshot>("fw_flash_close"),
+  fwBuilds: () => invoke<FwBuiltView[]>("fw_builds"),
+  /** A build folder, or every build when `dir` is empty. */
+  fwOpenFolder: (dir: string) => invoke<null>("fw_open_folder", { dir }),
+  fwExport: () => invoke<Snapshot>("fw_export"),
+  fwImport: () => invoke<Snapshot>("fw_import"),
   /** Only in the e2e-sim build. */
   e2eSim: (op: string) => invoke<Snapshot>("e2e_sim", { op }),
   e2eStartup: (origin: number, ready: number, interactive: number) =>
@@ -42,4 +67,8 @@ export function onProgress(f: (p: ProgressView) => void): Promise<UnlistenFn> {
 
 export function onDevicesChanged(f: () => void): Promise<UnlistenFn> {
   return listen("devices-changed", () => f());
+}
+
+export function onFwBuild(f: () => void): Promise<UnlistenFn> {
+  return listen("fw-build", () => f());
 }

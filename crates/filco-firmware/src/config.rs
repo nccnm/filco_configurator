@@ -19,7 +19,7 @@
 use toml::{Table, Value};
 
 use crate::Error;
-use crate::v72::{Firmware, parse_code};
+use crate::v72::{Firmware, code_name, parse_code};
 
 /// A parsed configuration, with keys resolved to indices.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -198,5 +198,50 @@ impl Config {
     /// Whether any tap-hold key is configured.
     pub fn has_tap_hold(&self) -> bool {
         self.tap_key.is_some() || !self.tap_layers.is_empty()
+    }
+
+    /// The configuration as TOML that [`Config::parse`] reads back to the same value: keys by their stock names,
+    /// codes by name (`0xNN` when unnamed), entries in the order of the lists.
+    pub fn to_toml(&self, fw: &Firmware) -> String {
+        let key = |k: u8| fw.names.get(&k).cloned().unwrap_or_else(|| format!("#{k}"));
+        let code = |c: u8| Value::String(code_name(Some(c)));
+        let mut t = Table::new();
+        t.insert("name".into(), Value::String(self.name.clone()));
+        if self.info_block {
+            t.insert("info_block".into(), Value::Boolean(true));
+        }
+        if !self.fn_layer.is_empty() {
+            let fl: Table = self
+                .fn_layer
+                .iter()
+                .map(|&(k, c)| (key(k), c.map_or_else(|| Value::String("none".into()), code)))
+                .collect();
+            t.insert("fn_layer".into(), Value::Table(fl));
+        }
+        if !self.keymap.is_empty() {
+            let km: Table = self.keymap.iter().map(|&(k, c)| (key(k), code(c))).collect();
+            t.insert("keymap".into(), Value::Table(km));
+        }
+        let mut holds = Vec::new();
+        if let Some((k, tap, hold, term)) = self.tap_key {
+            let mut h = Table::new();
+            h.insert("key".into(), Value::String(key(k)));
+            h.insert("tap".into(), code(tap));
+            h.insert("hold".into(), code(hold));
+            h.insert("term_ms".into(), Value::Integer(i64::from(term)));
+            holds.push(Value::Table(h));
+        }
+        for &(k, tap, layer, term) in &self.tap_layers {
+            let mut h = Table::new();
+            h.insert("key".into(), Value::String(key(k)));
+            h.insert("tap".into(), code(tap));
+            h.insert("hold_layer".into(), Value::Integer(i64::from(layer) + 1));
+            h.insert("term_ms".into(), Value::Integer(i64::from(term)));
+            holds.push(Value::Table(h));
+        }
+        if !holds.is_empty() {
+            t.insert("tap_hold".into(), Value::Array(holds));
+        }
+        toml::to_string(&t).unwrap_or_default()
     }
 }

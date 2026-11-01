@@ -25,15 +25,37 @@ const MODIFIERS: u32 = 0x2000_02B8;
 const LEFT: u8 = 0x50;
 const LCTRL: u8 = 0xE0;
 
-/// Report lines and the overall result.
-#[derive(Debug, Default)]
-pub struct Out {
+/// Report lines, each also handed to an optional callback as it is written (progress for a UI).
+#[derive(Default)]
+pub struct Out<'a> {
     pub lines: Vec<String>,
+    on_line: Option<&'a mut dyn FnMut(&str)>,
 }
 
-impl Out {
+impl std::fmt::Debug for Out<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Out")
+            .field("lines", &self.lines)
+            .field("streaming", &self.on_line.is_some())
+            .finish()
+    }
+}
+
+impl<'a> Out<'a> {
+    /// Collects the lines and calls `on_line` with each one as it is written.
+    pub fn streaming(on_line: &'a mut dyn FnMut(&str)) -> Self {
+        Out {
+            lines: Vec::new(),
+            on_line: Some(on_line),
+        }
+    }
+
     fn push(&mut self, s: impl Into<String>) {
-        self.lines.push(s.into());
+        let s = s.into();
+        if let Some(f) = self.on_line.as_mut() {
+            f(&s);
+        }
+        self.lines.push(s);
     }
 }
 

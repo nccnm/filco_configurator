@@ -415,6 +415,231 @@ impl FirmwareView {
     }
 }
 
+/// A firmware key code as drawn on a keycap: a legend, or an icon for the firmware's own mouse and volume codes
+/// and Menu (as in the manual's Fn layer diagram).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct FwCodeView {
+    pub code: u8,
+    /// Keycap text; empty when `icon` is set.
+    pub legend: String,
+    /// `lclick`, `rclick`, `mup`, `mdown`, `mleft`, `mright`, `wheelup`, `wheeldown`, `mute`, `voldown`, `volup`,
+    /// `menu`.
+    pub icon: Option<String>,
+    /// Full name for the inspector and tooltips.
+    pub name: String,
+}
+
+/// Firmware-only codes of the V72 Fn layer (manual, Fn layer diagram): (code, icon, Vietnamese, English).
+const FW_SPECIAL: [(u8, &str, &str, &str); 11] = [
+    (0xF7, "lclick", "Chuột: nhấp trái", "Mouse: left click"),
+    (0xF8, "rclick", "Chuột: nhấp phải", "Mouse: right click"),
+    (0xFB, "mup", "Chuột: di lên", "Mouse: move up"),
+    (0xFC, "mdown", "Chuột: di xuống", "Mouse: move down"),
+    (0xF9, "mleft", "Chuột: di sang trái", "Mouse: move left"),
+    (0xFA, "mright", "Chuột: di sang phải", "Mouse: move right"),
+    (0xFD, "wheelup", "Chuột: cuộn lên", "Mouse: scroll up"),
+    (0xFE, "wheeldown", "Chuột: cuộn xuống", "Mouse: scroll down"),
+    (0xB5, "mute", "Tắt âm", "Mute"),
+    (0xBA, "voldown", "Giảm âm lượng", "Volume down"),
+    (0xB9, "volup", "Tăng âm lượng", "Volume up"),
+];
+
+impl FwCodeView {
+    pub fn new(code: u8, lang: UiLang) -> Self {
+        let en = lang == UiLang::En;
+        if let Some(&(_, icon, vi, eng)) = FW_SPECIAL.iter().find(|s| s.0 == code) {
+            return FwCodeView {
+                code,
+                legend: String::new(),
+                icon: Some(icon.to_owned()),
+                name: (if en { eng } else { vi }).to_owned(),
+            };
+        }
+        let (legend, icon, name) = match code {
+            0x65 => (String::new(), Some("menu".to_owned()), "Menu".to_owned()),
+            filco_firmware::v72::FN_CODE => ("Fn".to_owned(), None, "Fn".to_owned()),
+            0xD0..=0xD9 => {
+                let m = format!("M{}", code - 0xCF);
+                (m.clone(), None, m)
+            }
+            _ => {
+                let label = slot_label(
+                    SlotKind::Key {
+                        mods: ModMask(0),
+                        usage: code,
+                    },
+                    lang.into(),
+                );
+                (label.short, None, label.long)
+            }
+        };
+        FwCodeView {
+            code,
+            legend,
+            icon,
+            name,
+        }
+    }
+
+    /// The firmware-only codes, for the picker.
+    pub fn specials(lang: UiLang) -> Vec<Self> {
+        FW_SPECIAL.iter().map(|s| Self::new(s.0, lang)).collect()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum FwHoldView {
+    Key {
+        code: u8,
+    },
+    /// Layer 0-3.
+    Layer {
+        layer: u8,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct FwTapHoldView {
+    pub tap: u8,
+    pub hold: FwHoldView,
+    pub term_ms: u16,
+}
+
+/// One key in firmware mode, in the order of `model.keys`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct FwKeyView {
+    pub index: u8,
+    /// Fn + key now; `None` when the key has no Fn function.
+    pub fn_code: Option<FwCodeView>,
+    pub fn_base: Option<FwCodeView>,
+    pub fn_stock: Option<FwCodeView>,
+    pub default: FwCodeView,
+    pub default_base: FwCodeView,
+    pub default_stock: FwCodeView,
+    pub tap_hold: Option<FwTapHoldView>,
+    /// Keycap texts of the tap-hold: hold (`Ctrl`, `→ L3`) above, tap in the middle.
+    pub tap_label: Option<String>,
+    pub hold_label: Option<String>,
+    /// Differs from what the keyboard holds (not built and flashed yet).
+    pub changed: bool,
+    /// Differs from stock V72.
+    pub custom: bool,
+    /// `layout_specific`, `fn_key`, `tap_hold`.
+    pub fn_locked: Option<String>,
+    /// `has_fn`, `fn_key`.
+    pub tap_hold_locked: Option<String>,
+}
+
+/// One step of a build.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct FwStepView {
+    /// `image`, `keys`, `fn`, `layers`, `tap_hold`, `info`, `stack`, `updater`.
+    pub id: String,
+    pub ok: u32,
+    pub fail: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct FwBuildView {
+    pub name: String,
+    pub running: bool,
+    pub steps: Vec<FwStepView>,
+    /// Set when finished.
+    pub passed: Option<bool>,
+    pub tag: Option<u16>,
+    pub dir: Option<String>,
+    pub has_updater: bool,
+    /// Failed report lines (when not passed).
+    pub failures: Vec<String>,
+    /// The whole report, for "show report".
+    pub report: Vec<String>,
+    /// The pipeline could not run (I/O, refused config).
+    pub error: Option<String>,
+    /// The draft changed after this build: it can no longer be flashed from here.
+    pub stale: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct FwFlashView {
+    pub name: String,
+    pub tag: u16,
+    /// `ready` (backup done, Assist closed), `waiting` (updater started, waiting for the keyboard to come back),
+    /// `done` (checked after flashing).
+    pub step: String,
+    pub backup: Option<String>,
+    /// The keyboard went away after the updater started (it is being flashed).
+    pub saw_unplug: bool,
+    /// After flashing: the firmware on the keyboard is the build.
+    pub firmware_ok: Option<bool>,
+    /// After flashing: name the keyboard reports (`None`: no info block).
+    pub firmware_name: Option<String>,
+    /// After flashing: layers that differ from the backup.
+    pub layers_changed: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct FwBuiltView {
+    pub name: String,
+    pub dir: String,
+    pub tag: Option<u16>,
+    pub passed: bool,
+    /// Seconds since the epoch (a JSON number, well inside the safe integer range).
+    #[ts(type = "number")]
+    pub modified: u64,
+    /// This build is what the keyboard runs now.
+    pub on_keyboard: bool,
+}
+
+/// Firmware mode. `None` on the snapshot until the keyboard was read.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct FwView {
+    /// The stock firmware shipped with the app could not be loaded: firmware mode is unavailable.
+    pub stock_error: Option<String>,
+    /// Name and checksum of the firmware on the keyboard; `None` when it has no info block (stock V72 or an
+    /// older patched build).
+    pub on_keyboard: Option<String>,
+    pub on_keyboard_tag: Option<u16>,
+    pub keys: Vec<FwKeyView>,
+    /// Keys that differ from the keyboard.
+    pub changes: u32,
+    pub can_undo: bool,
+    pub can_redo: bool,
+    pub fn_slots_used: u32,
+    pub fn_slots: u32,
+    pub tap_key_used: u32,
+    pub tap_layer_used: u32,
+    /// Index of the Fn key.
+    pub fn_key: u8,
+    pub suggested_name: String,
+    pub build: Option<FwBuildView>,
+    pub flash: Option<FwFlashView>,
+}
+
+/// A firmware edit from the inspector.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum FwEditInput {
+    SetFn {
+        key: u8,
+        code: Option<u8>,
+    },
+    SetDefault {
+        key: u8,
+        code: u8,
+    },
+    SetTapHold {
+        key: u8,
+        tap_hold: Option<FwTapHoldView>,
+    },
+    KeyToBase {
+        key: u8,
+    },
+    KeyToStock {
+        key: u8,
+    },
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 pub struct Snapshot {
     pub phase: Phase,
@@ -433,6 +658,8 @@ pub struct Snapshot {
     pub report: Option<ReportView>,
     /// What the connected firmware reports it changed (command 0x30); `None` when it has no info block.
     pub firmware: Option<FirmwareView>,
+    /// Firmware mode (draft, build, flash); `None` until the keyboard was read.
+    pub fw: Option<FwView>,
     pub error: Option<ErrorView>,
     pub simulated: bool,
 }
@@ -488,6 +715,9 @@ pub struct Catalog {
     pub keys: Vec<KeyUsageView>,
     pub consumer: Vec<ConsumerUsageView>,
     pub system: Vec<SystemUsageView>,
+    /// Firmware-only codes for Fn + key (mouse, volume), in Vietnamese and English.
+    pub fw_special: Vec<FwCodeView>,
+    pub fw_special_en: Vec<FwCodeView>,
 }
 
 fn group_name(g: UsageGroup) -> &'static str {
@@ -536,6 +766,8 @@ impl Catalog {
                     name: u.name.to_owned(),
                 })
                 .collect(),
+            fw_special: FwCodeView::specials(UiLang::Vi),
+            fw_special_en: FwCodeView::specials(UiLang::En),
         }
     }
 }
@@ -623,6 +855,16 @@ pub fn typescript() -> String {
         TapHoldView::decl(&cfg),
         FirmwareEditView::decl(&cfg),
         FirmwareView::decl(&cfg),
+        FwCodeView::decl(&cfg),
+        FwHoldView::decl(&cfg),
+        FwTapHoldView::decl(&cfg),
+        FwKeyView::decl(&cfg),
+        FwStepView::decl(&cfg),
+        FwBuildView::decl(&cfg),
+        FwFlashView::decl(&cfg),
+        FwBuiltView::decl(&cfg),
+        FwView::decl(&cfg),
+        FwEditInput::decl(&cfg),
         Snapshot::decl(&cfg),
         BackupView::decl(&cfg),
         ProgressView::decl(&cfg),

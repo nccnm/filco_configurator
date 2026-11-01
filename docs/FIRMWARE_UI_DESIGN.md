@@ -1,4 +1,12 @@
-# Thiết kế trang Firmware (đề xuất, chờ duyệt)
+# Thiết kế trang Firmware (đã duyệt, đã làm)
+
+Trạng thái: đã duyệt cả 4 câu ở mục 8 và đã làm theo mục 9 trên nhánh `feat/firmware-build`. Mã:
+`crates/filco-service/src/firmware.rs` (bản nháp, danh sách bản dựng, chạy pipeline, chia báo cáo theo bước),
+`src-tauri/src/app/firmware.rs` (trạng thái trong `App`, luồng nạp), các lệnh `fw_*` ở `src-tauri/src/commands.rs`,
+UI ở `ui/src/components/Fw*.svelte` và `ui/src/lib/fwicons.ts`. Bản đầu của mockup ghi "Fn + U = PgUp" và "Ô Fn:
+36/39"; thật ra bản `HJKL_CapsSpace2_Info` đã dùng cả 39 ô, nên thêm Fn cho U bị firmware từ chối (ứng dụng báo lỗi
+và không đổi gì) cho tới khi bỏ chức năng Fn của một phím khác. Mockup đã sửa sang ví dụ làm được: Fn + O đổi từ
+PrtSc sang Home (không tốn ô), "Ô Fn: 39/39".
 
 Đây là phần "Tích hợp vào ứng dụng" của `DEFERRED_FIRMWARE_BUILD.md`: sửa cấu hình firmware ngay trong ứng dụng,
 dựng và kiểm thử trên giả lập, rồi dẫn người dùng nạp bằng trình cập nhật chính hãng. Phần lõi (dựng, kiểm thử,
@@ -76,6 +84,14 @@ trên bàn phím. CheckSum 0x2A7C trên mockup là số giả định.
 - Khối thông tin luôn được thêm, vì ứng dụng cần nó để hiển thị và để kiểm sau khi nạp.
 - Các bước hiện với số đếm thật lấy từ báo cáo: dựng ảnh, so từng phím, đổi layer, tap-hold, lệnh 0x30, stack,
   trình cập nhật. Khoảng 3-4 giây, chạy ở luồng nền, hủy được.
+- Đủ 8 bước hiện ngay từ lúc bấm Dựng, để người dùng thấy còn bao nhiêu việc:
+  - bước đã xong: OK hoặc "N đạt";
+  - bước đang chạy: vòng quay (màu Firmware) và số đã đạt tới lúc đó;
+  - bước chưa tới: "Chờ", chữ mờ;
+  - bước không chạy vì dừng sớm (giả lập dừng): "Bỏ qua".
+
+  Báo cáo đến từng dòng trong lúc kiểm thử (`filco_fwtest::run_streaming`), không phải một lần lúc xong. Ứng dụng
+  báo giao diện ở mỗi tiêu đề mục và tối đa 10 lần mỗi giây giữa các tiêu đề.
 - **Đạt:**
   - CheckSum in to;
   - báo cáo đầy đủ mở được tại chỗ;

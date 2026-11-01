@@ -41,14 +41,19 @@ fn pipeline_reproduces_every_golden_build() {
 
 fn check(name: &str, out: &Path) {
     let gold = root().join("tests/fixtures/firmware").join(name);
+    let mut seen = Vec::new();
     let o = filco_fwbuild::run(
         &root().join("firmware"),
         &gold.join("config.toml"),
         out,
-        &mut |_| {},
+        &mut |l| seen.push(l.to_owned()),
     )
     .unwrap_or_else(|e| panic!("{name}: {e}"));
     assert!(o.passed, "{name}: tests failed");
+    assert_eq!(
+        seen, o.report,
+        "{name}: progress gets every report line, in order"
+    );
     let exe = o.updater.as_ref().expect("updater built");
     assert!(exe.is_file());
     let read = |p: PathBuf| std::fs::read(&p).unwrap_or_else(|e| panic!("{}: {e}", p.display()));

@@ -3,6 +3,42 @@
 Nhánh `feat/initial-app` (chưa merge vào `main`, không có remote, chưa push). Bản giao việc: `docs/BRIEF.md`; kế hoạch
 đã duyệt: `docs/PLAN.md` (bản HTML `docs/plan.html`); các quyết định phát sinh: `docs/DECISIONS.md` (D1-D19).
 
+## Cập nhật (2026-11-01): trang Firmware (thiết kế `docs/FIRMWARE_UI_DESIGN.md` mục 9)
+
+Cùng nhánh `feat/firmware-build`. Tab "Firmware" sửa Fn + phím, keymap mặc định và tap-hold trên một bản nháp tự lưu;
+mỗi thay đổi được vá thử trên V72 gốc (khoảng 17 ms) và bị từ chối kèm lý do nếu firmware không cho phép. Dựng + kiểm
+thử chạy ngoài khóa của ứng dụng, tiến độ từng dòng qua sự kiện `fw-build`; kết quả hiện theo 8 bước của TEST_REPORT.
+Nạp: sao lưu 4 layer, kiểm FILCO Assist, mở trình cập nhật chính hãng (người dùng bấm Start), rồi khi bàn phím cắm lại
+thì đọc khối thông tin để xác nhận tên và tag, và báo layer bị đổi. Mã firmware riêng (chuột, cuộn, âm lượng, Menu) vẽ
+bằng icon như manual; nghĩa của chúng lấy từ manual, **chưa thử trên bàn phím thật**. Layer 2 đổi sang màu berry,
+Firmware dùng xanh da trời.
+
+- Service: `crates/filco-service/src/firmware.rs` (bản nháp, chỉnh sửa, undo, dựng, đọc báo cáo).
+  `Config::to_toml` thêm vào `filco-firmware`.
+- App / IPC: `src-tauri/src/app/firmware.rs`, lệnh `fw_*` trong `commands.rs`, view `Fw*` trong `view.rs`.
+- UI: `FwKeyboard`, `FwInspector`, `FwBuildDialog`, `FwFlashDialog`, `FwBuildsDialog`, `FwIcon`, `lib/fwicons.ts`.
+- Test: 5 test service, 3 test app (sửa-dựng-nạp-kiểm, bản nháp theo firmware mới, bản dựng cũ không nạp được),
+  test round-trip TOML, 3 test E2E và 7 ảnh chuẩn mới (sáng / tối).
+
+Sửa sau khi người dùng thử:
+
+- Hộp thoại dựng không cho thấy đang chạy: báo cáo kiểm thử chỉ đến một lần lúc xong, nên suốt 3 giây chỉ có dòng
+  "Dựng ảnh firmware OK". Giờ `filco_fwtest::run_streaming` đẩy từng dòng ngay khi có; hộp thoại hiện đủ 8 bước từ
+  đầu (xong / vòng quay đang chạy / Chờ / Bỏ qua). Sự kiện tới UI được gộp: mỗi tiêu đề mục và tối đa 10 lần mỗi giây.
+- Viền focus bị cắt ở cạnh trái ô "Tìm phím", cột mục bên trái và cột đầu bảng chọn phím (cả hai inspector), và ở
+  cạnh phải nút Nạp trong danh sách sao lưu: vùng cuộn (`overflow: auto`) không chừa chỗ cho viền 4 px. Thêm 4 px
+  padding kèm margin âm để nội dung không xê dịch (ảnh chuẩn không đổi pixel nào); test E2E mới kiểm mọi nút và ô
+  nhập trong inspector đều đủ chỗ cho viền.
+- Cửa sổ mở cao 1000 (trước 800, +25 %) để thấy inspector ngay, giới hạn trong vùng làm việc của màn hình và căn giữa
+  trong đó; bản E2E giữ 1280 x 800 cho ảnh chuẩn.
+
+Kiểm đã chạy: `scripts/check.ps1` (fmt, clippy -D warnings, test workspace, deny, prettier, eslint, svelte-check,
+vitest) đạt; `scripts/e2e.ps1 -Runs 3` đạt 26/26 cả 3 lần. Không ghi gì xuống bàn phím thật, không chạy trình cập
+nhật thật (E2E dùng launcher giả lập).
+
+Chưa làm: "nạp lại V72 gốc" và "nạp cấu hình này vào bản nháp" trong danh sách bản đã dựng; tự nạp trong ứng dụng
+(hoãn theo quyết định của người dùng).
+
 ## Cập nhật (2026-11-01): dựng firmware tùy biến bằng Rust (task 12.9, phần A-D)
 
 Nhánh `feat/firmware-build` (tách từ `main` d8e5792). Task hoãn ở `docs/DEFERRED_FIRMWARE_BUILD.md` đã làm phần A-D:

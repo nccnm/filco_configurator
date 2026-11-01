@@ -7,7 +7,9 @@ use tauri::{AppHandle, Emitter, Runtime, State};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::app::App;
-use crate::view::{Action, BackupView, Catalog, ModelView, ProgressView, Snapshot, UiLang};
+use crate::view::{
+    Action, BackupView, Catalog, FwBuiltView, FwEditInput, ModelView, ProgressView, Snapshot, UiLang,
+};
 
 type Res<T> = Result<T, String>;
 
@@ -63,6 +65,113 @@ snapshot_command!(dismiss_journal() => |a, _| a.dismiss_journal());
 snapshot_command!(restore_from_journal() => |a, _| a.restore_from_journal());
 snapshot_command!(load_backup(path: String) => |a, _| a.load_backup(&PathBuf::from(path)));
 snapshot_command!(backup_now() => |a, p| { a.backup_now(p); });
+snapshot_command!(fw_edit(edit: FwEditInput) => |a, _| a.fw_edit(&edit));
+snapshot_command!(fw_undo() => |a, _| a.fw_undo());
+snapshot_command!(fw_redo() => |a, _| a.fw_redo());
+snapshot_command!(fw_revert() => |a, _| a.fw_revert());
+snapshot_command!(fw_close_build() => |a, _| a.fw_close_build());
+snapshot_command!(fw_flash_prepare() => |a, _| a.fw_flash_prepare());
+snapshot_command!(fw_flash_launch() => |a, _| a.fw_flash_launch());
+snapshot_command!(fw_flash_close() => |a, _| a.fw_flash_close());
+
+/// Builds the draft: patch, emulator tests, updater. Runs without holding the app lock; each report line is
+/// recorded and announced with an `fw-build` event (the UI then asks for a snapshot). Returns when finished.
+#[tauri::command]
+pub async fn fw_build<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, crate::State>,
+    name: String,
+) -> Res<Snapshot> {
+    let Some(job) = run(&app, &state, move |a, _| a.fw_start_build(&name)).await? else {
+        return run(&app, &state, |a, _| a.snapshot()).await;
+    };
+    let shared = std::sync::Arc::clone(&state.app);
+    let handle = app.clone();
+    let job2 = job.clone();
+    let done = tauri::async_runtime::spawn_blocking(move || {
+        // Every line is recorded; the UI is told at each section title (a new step) and at most every 100 ms
+        // in between, not once per line.
+        let mut told: Option<std::time::Instant> = None;
+        job2.run(&mut |line| {
+            shared
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .fw_build_line(job2.generation(), line);
+            let title = !line.is_empty() && !line.starts_with(' ');
+            if title || told.is_none_or(|t| t.elapsed() >= std::time::Duration::from_millis(100)) {
+                told = Some(std::time::Instant::now());
+                let _ = handle.emit("fw-build", ());
+            }
+        })
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    run(&app, &state, move |a, _| {
+        a.fw_finish_build(&job, done);
+        a.snapshot()
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn fw_builds<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, crate::State>,
+) -> Res<Vec<FwBuiltView>> {
+    run(&app, &state, |a, _| a.fw_builds()).await
+}
+
+/// Opens a build folder, or the folder of all builds when `dir` is empty.
+#[tauri::command]
+pub async fn fw_open_folder<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, crate::State>,
+    dir: String,
+) -> Res<()> {
+    let root = run(&app, &state, |a, _| a.fw_dir()).await?;
+    let dir = if dir.is_empty() { root } else { PathBuf::from(dir) };
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    std::process::Command::new("explorer.exe")
+        .arg(&dir)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn fw_export<R: Runtime>(app: AppHandle<R>, state: State<'_, crate::State>) -> Res<Snapshot> {
+    let picked = app
+        .dialog()
+        .file()
+        .add_filter("Firmware config", &["toml"])
+        .set_file_name("custom.toml")
+        .blocking_save_file();
+    let path = picked.and_then(|p| p.into_path().ok());
+    run(&app, &state, move |a, _| {
+        if let Some(p) = path {
+            a.fw_export(&p);
+        }
+        a.snapshot()
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn fw_import<R: Runtime>(app: AppHandle<R>, state: State<'_, crate::State>) -> Res<Snapshot> {
+    let picked = app
+        .dialog()
+        .file()
+        .add_filter("Firmware config", &["toml"])
+        .blocking_pick_file();
+    let path = picked.and_then(|p| p.into_path().ok());
+    run(&app, &state, move |a, _| {
+        if let Some(p) = path {
+            a.fw_import(&p);
+        }
+        a.snapshot()
+    })
+    .await
+}
 
 #[tauri::command]
 pub async fn snapshot<R: Runtime>(app: AppHandle<R>, state: State<'_, crate::State>) -> Res<Snapshot> {
@@ -184,6 +293,23 @@ pub mod e2e {
             .expect("512-byte info block")
     }
 
+    /// The simulated updater: the keyboard takes the build's info block (as if flashed) and goes away; the test
+    /// plugs it back with the `replug` control, as the real keyboard comes back after the updater's Start.
+    pub fn launcher(sim: SimBackend) -> crate::app::Launcher {
+        Box::new(move |dir: &std::path::Path| {
+            let image = std::fs::read(dir.join("image.bin")).map_err(|e| e.to_string())?;
+            let block: [u8; 512] = image
+                .get(0xE600..0xE600 + 512)
+                .and_then(|b| b.try_into().ok())
+                .ok_or("image too short")?;
+            sim.with(|k| {
+                k.set_info_block(Some(block));
+                k.unplug();
+            });
+            Ok(())
+        })
+    }
+
     pub fn initial_sim() -> SimBackend {
         let mut sim = SimBackend::new(SimKeyboard::new(pages()));
         let pace = std::env::var("KLE_E2E_PACE_MS")
@@ -300,7 +426,20 @@ pub fn handler<R: Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + Send + 
         open_backup_folder,
         export_file,
         import_file,
-        load_backup_folder
+        load_backup_folder,
+        fw_edit,
+        fw_undo,
+        fw_redo,
+        fw_revert,
+        fw_build,
+        fw_close_build,
+        fw_flash_prepare,
+        fw_flash_launch,
+        fw_flash_close,
+        fw_builds,
+        fw_open_folder,
+        fw_export,
+        fw_import
     ]
 }
 
@@ -332,6 +471,19 @@ pub fn handler<R: Runtime>() -> impl Fn(tauri::ipc::Invoke<R>) -> bool + Send + 
         export_file,
         import_file,
         load_backup_folder,
+        fw_edit,
+        fw_undo,
+        fw_redo,
+        fw_revert,
+        fw_build,
+        fw_close_build,
+        fw_flash_prepare,
+        fw_flash_launch,
+        fw_flash_close,
+        fw_builds,
+        fw_open_folder,
+        fw_export,
+        fw_import,
         e2e::e2e_sim,
         e2e::e2e_startup
     ]

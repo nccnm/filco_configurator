@@ -63,6 +63,28 @@ fn golden_builds_are_reproduced_byte_for_byte() {
     }
 }
 
+/// `to_toml` writes what `parse` reads back to the same config, and building from it gives the same image.
+#[test]
+fn configs_round_trip_through_toml() {
+    let stock = stock_hex();
+    let (_, img) = filco_firmware::HexFile::parse(&stock).unwrap();
+    let fw = filco_firmware::Firmware::new(&img).unwrap();
+    for name in BUILDS {
+        let dir = root().join("tests").join("fixtures").join("firmware").join(name);
+        let src = String::from_utf8(read(&dir.join("config.toml"))).unwrap();
+        let cfg = filco_firmware::Config::parse(&src, &fw).unwrap();
+        let text = cfg.to_toml(&fw);
+        assert_eq!(
+            filco_firmware::Config::parse(&text, &fw).unwrap(),
+            cfg,
+            "{name}:\n{text}"
+        );
+        let a = filco_firmware::build(&stock, &src).unwrap();
+        let b = filco_firmware::build(&stock, &text).unwrap();
+        assert!(a.image == b.image, "{name}: image differs");
+    }
+}
+
 #[test]
 fn refuses_a_non_stock_hex_and_bad_configs() {
     let stock = stock_hex();

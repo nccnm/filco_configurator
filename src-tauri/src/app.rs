@@ -1,5 +1,7 @@
 //! Application state behind the Tauri commands. No Tauri types here, so it is tested like any other code.
 
+mod firmware;
+
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -22,6 +24,8 @@ use crate::view::{
     SlotView, Snapshot, UiLang,
 };
 
+pub use firmware::{Launcher, launch_updater};
+
 /// Where the app keeps its files.
 #[derive(Debug, Clone)]
 pub struct Paths {
@@ -30,6 +34,8 @@ pub struct Paths {
     pub state: PathBuf,
     /// FILCO Assist's settings file (read only), if it can exist on this machine.
     pub assist_config: Option<PathBuf>,
+    /// Folder of the stock V72 HEX and updater shipped with the app (firmware mode).
+    pub firmware: Option<PathBuf>,
 }
 
 impl Paths {
@@ -40,6 +46,7 @@ impl Paths {
             backups,
             state,
             assist_config: assist_config::default_path(),
+            firmware: None,
         })
     }
 }
@@ -68,6 +75,7 @@ pub struct App {
     report: Option<WriteReport>,
     error: Option<ErrorView>,
     simulated: bool,
+    fw: firmware::Fw,
 }
 
 impl std::fmt::Debug for App {
@@ -137,7 +145,13 @@ impl App {
             report: None,
             error: None,
             simulated,
+            fw: firmware::Fw::new(paths.firmware.as_deref(), &paths.state, Box::new(launch_updater)),
         }
+    }
+
+    /// How the updater is started (tests and the E2E build simulate a flash).
+    pub fn set_launcher(&mut self, launcher: Launcher) {
+        self.fw.launcher = launcher;
     }
 
     pub fn set_lang(&mut self, lang: UiLang) {
@@ -174,6 +188,7 @@ impl App {
     /// Assist is closed. Drops the connection when its keyboard is gone.
     pub fn refresh(&mut self, progress: &mut dyn FnMut(ProgressView)) {
         self.rescan();
+        self.fw_check_flash();
         if self.conn.is_none()
             && let Some(f) = self.found.iter().find(|f| f.model.is_some()).cloned()
         {
@@ -261,6 +276,7 @@ impl App {
                     Ok(ed) => conn.editor = Some(ed),
                     Err(e) => self.error = Some(ErrorView::new("read_failed", e)),
                 }
+                self.fw_after_read();
             }
             Err(e) => {
                 self.read_failed = true;
@@ -715,6 +731,7 @@ impl App {
             plan,
             report,
             firmware: self.firmware_view(model),
+            fw: self.fw_view(),
             error: self.error.clone(),
             simulated: self.simulated,
         }
@@ -734,6 +751,8 @@ mod tests {
     use filco_service::backend::SimBackend;
     use filco_sim::{Fault, FaultKind, SimKeyboard, Stage};
 
+    use crate::view::FwEditInput;
+
     use super::*;
 
     fn rig() -> (App, SimBackend, tempfile::TempDir) {
@@ -743,9 +762,14 @@ mod tests {
             backups: tmp.path().join("backups"),
             state: tmp.path().to_owned(),
             assist_config: Some(tmp.path().join("filco_assist_config.json")),
+            firmware: Some(repo_firmware()),
         };
         let app = App::new(Arc::new(sim.clone()), &paths, true);
         (app, sim, tmp)
+    }
+
+    fn repo_firmware() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../firmware")
     }
 
     fn key(mods: u8, usage: u8) -> Action {
@@ -804,6 +828,7 @@ mod tests {
             backups: tmp.path().join("backups"),
             state: tmp.path().to_owned(),
             assist_config: Some(tmp.path().join("filco_assist_config.json")),
+            firmware: Some(repo_firmware()),
         };
         let mut app = App::new(Arc::new(sim), &paths, true);
         app.refresh(&mut |_| {});
@@ -831,6 +856,127 @@ mod tests {
                 .iter()
                 .any(|e| e.legend.as_deref() == Some("I") && e.code.is_none())
         );
+    }
+
+    /// Edit the draft, build it for real, "flash" it with a simulated updater, and check after the keyboard is
+    /// back: the whole firmware flow without a keyboard.
+    #[test]
+    fn firmware_edit_build_flash_and_check() {
+        let tmp = tempfile::tempdir().unwrap();
+        let sim = SimBackend::new(
+            SimKeyboard::new(vec![Page::empty(); 4]).with_info_block(info_block_of("HJKL_CapsSpace2_Info")),
+        );
+        let paths = Paths {
+            backups: tmp.path().join("backups"),
+            state: tmp.path().to_owned(),
+            assist_config: None,
+            firmware: Some(repo_firmware()),
+        };
+        let mut app = App::new(Arc::new(sim.clone()), &paths, true);
+        let s2 = sim.clone();
+        app.set_launcher(Box::new(move |dir: &Path| {
+            let image = std::fs::read(dir.join("image.bin")).map_err(|e| e.to_string())?;
+            s2.with(|k| {
+                k.set_info_block(Some(image[0xE600..0xE600 + 512].try_into().unwrap()));
+                k.unplug();
+            });
+            Ok(())
+        }));
+        app.refresh(&mut |_| {});
+        let fw = app.snapshot().fw.expect("firmware mode after the read");
+        assert_eq!(fw.on_keyboard.as_deref(), Some("HJKL_CapsSpace2_Info"));
+        assert_eq!(fw.on_keyboard_tag, Some(0x1321));
+        assert_eq!((fw.changes, fw.fn_slots_used, fw.tap_layer_used), (0, 39, 2));
+        assert_eq!(fw.suggested_name, "HJKL_CapsSpace2_Info_2");
+
+        // Fn + O = Home instead of PrintScreen; the draft is autosaved.
+        let o = 19;
+        app.fw_edit(&FwEditInput::SetFn {
+            key: o,
+            code: Some(0x4A),
+        });
+        let fw = app.snapshot().fw.unwrap();
+        assert_eq!(fw.changes, 1);
+        let ok = fw.keys.iter().find(|k| k.index == o).unwrap();
+        assert!(ok.changed && ok.fn_code.as_ref().unwrap().legend == "Home");
+        assert!(tmp.path().join(filco_service::firmware::DRAFT_FILE).is_file());
+        // A refused edit says why and changes nothing.
+        app.fw_edit(&FwEditInput::SetFn {
+            key: 10,
+            code: Some(0x04),
+        });
+        assert_eq!(app.snapshot().error.unwrap().code, "fw_edit_refused");
+        assert_eq!(app.snapshot().fw.unwrap().changes, 1);
+
+        let job = app.fw_start_build("Home_O").unwrap();
+        let done = job.run(&mut |_| {});
+        app.fw_finish_build(&job, done);
+        let b = app.snapshot().fw.unwrap().build.unwrap();
+        assert_eq!(b.passed, Some(true), "{:?}", b.failures);
+        assert!(b.has_updater && !b.stale);
+        assert_eq!(b.steps.last().map(|s| s.id.as_str()), Some("updater"));
+        assert_eq!(app.fw_builds().len(), 1);
+
+        app.fw_flash_prepare();
+        assert!(app.snapshot().error.is_none(), "{:?}", app.snapshot().error);
+        assert_eq!(app.snapshot().fw.unwrap().flash.unwrap().step, "ready");
+        app.fw_flash_launch();
+        assert_eq!(app.snapshot().fw.unwrap().flash.unwrap().step, "waiting");
+        app.refresh(&mut |_| {});
+        assert!(app.snapshot().fw.is_none(), "keyboard gone while flashing");
+        sim.with(SimKeyboard::reconnect);
+        app.refresh(&mut |_| {});
+        let fw = app.snapshot().fw.unwrap();
+        let f = fw.flash.unwrap();
+        assert_eq!(f.step, "done");
+        assert_eq!(f.firmware_ok, Some(true));
+        assert_eq!(f.layers_changed, Vec::<usize>::new());
+        assert_eq!(fw.on_keyboard.as_deref(), Some("Home_O"));
+        assert_eq!(fw.changes, 0, "the keyboard now runs the draft");
+        assert!(app.fw_builds()[0].on_keyboard);
+    }
+
+    /// A keyboard read first on stock firmware, then with a patched one (reconnected): a draft without edits
+    /// follows the new firmware instead of showing its differences as edits.
+    #[test]
+    fn an_unedited_draft_follows_a_new_firmware() {
+        let (mut app, sim, _tmp) = rig();
+        app.refresh(&mut |_| {});
+        assert_eq!(app.snapshot().fw.unwrap().changes, 0);
+        sim.with(|k| {
+            k.set_info_block(Some(info_block_of("HJKL_CapsSpace2_Info")));
+            k.unplug();
+        });
+        app.refresh(&mut |_| {});
+        sim.with(SimKeyboard::reconnect);
+        app.refresh(&mut |_| {});
+        let fw = app.snapshot().fw.unwrap();
+        assert_eq!(fw.on_keyboard.as_deref(), Some("HJKL_CapsSpace2_Info"));
+        assert_eq!((fw.changes, fw.tap_layer_used), (0, 2));
+    }
+
+    #[test]
+    fn a_build_that_is_stale_cannot_be_flashed() {
+        let (mut app, _sim, _tmp) = rig();
+        app.refresh(&mut |_| {});
+        let fw = app.snapshot().fw.unwrap();
+        assert_eq!(fw.on_keyboard, None, "stock firmware has no info block");
+        app.fw_edit(&FwEditInput::SetFn {
+            key: 19,
+            code: Some(0x4A),
+        });
+        let job = app.fw_start_build("x").unwrap();
+        let done = job.run(&mut |_| {});
+        app.fw_finish_build(&job, done);
+        app.fw_edit(&FwEditInput::SetFn {
+            key: 27,
+            code: Some(0x4A),
+        });
+        assert!(app.snapshot().fw.unwrap().build.unwrap().stale);
+        app.fw_flash_prepare();
+        assert_eq!(app.snapshot().error.unwrap().code, "fw_not_flashable");
+        assert!(app.fw_start_build("bad name").is_none());
+        assert_eq!(app.snapshot().error.unwrap().code, "fw_bad_name");
     }
 
     #[test]
@@ -924,6 +1070,7 @@ mod tests {
             backups: tmp.path().join("backups"),
             state: tmp.path().to_owned(),
             assist_config: None,
+            firmware: Some(repo_firmware()),
         };
         let mut app = App::new(Arc::new(sim.clone()), &paths, true);
         app.refresh(&mut |_| {});

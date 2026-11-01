@@ -8,6 +8,7 @@ pub mod backend;
 pub mod device;
 pub mod discovery;
 pub mod editor;
+pub mod firmware;
 pub mod guard;
 pub mod journal;
 pub mod store;

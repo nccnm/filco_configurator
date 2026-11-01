@@ -5,15 +5,18 @@ import { translate, type Key } from "./i18n";
 import { ipc } from "./ipc";
 
 export type Theme = "system" | "light" | "dark";
-export type Busy = null | "refresh" | "read" | "prepare" | "write" | "backup" | "edit";
+export type Busy = null | "refresh" | "read" | "prepare" | "write" | "backup" | "edit" | "build" | "flash";
 /** Dialogs not driven by the snapshot (the diff and report dialogs follow `snap.plan` / `snap.report`). */
-export type Dialog = null | "backups";
+export type Dialog = null | "backups" | "fw-build" | "fw-flash" | "fw-builds";
+/** Layer slots (FILCO Assist's pages) or the firmware draft. */
+export type Mode = "layers" | "firmware";
 
 class Store {
   snap = $state<Snapshot | null>(null);
   model = $state<ModelView | null>(null);
   catalog = $state<Catalog | null>(null);
   layer = $state(0);
+  mode = $state<Mode>("layers");
   selected = $state<number | null>(null); // index into model.keys
   busy = $state<Busy>(null);
   progress = $state<ProgressView | null>(null);
@@ -52,6 +55,15 @@ class Store {
     }
     if (this.layer >= s.layers.length && s.layers.length > 0) this.layer = 0;
     this.snap = s;
+  }
+
+  /** Takes a snapshot while a long command runs (the build streams its report this way). */
+  async peek(): Promise<void> {
+    try {
+      await this.apply(await ipc.snapshot());
+    } catch (e) {
+      this.ipcError = String(e);
+    }
   }
 
   /** Quiet refresh of FILCO Assist state and devices while idle (never while busy). */

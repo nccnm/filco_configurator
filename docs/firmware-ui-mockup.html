@@ -184,7 +184,7 @@ button { font:inherit; color:inherit; }
 <div class="mock">
   <h1>Trang Firmware: phác thiết kế để duyệt</h1>
   <p class="lead">Mockup tĩnh, cùng token màu, phông và cấu trúc phím với ứng dụng (dữ liệu thật: bố cục M10SP, bảng Fn của V72,
-  cấu hình bản HJKL_CapsSpace2_Info đang trên bàn phím, cộng 2 thay đổi nháp: Fn + U = PgUp và ngưỡng Space phải 250 ms).
+  cấu hình bản HJKL_CapsSpace2_Info đang trên bàn phím, cộng 2 thay đổi nháp: Fn + O đổi từ PrtSc sang Home và ngưỡng Space phải 250 ms).
   Chọn từng màn hình bên dưới. Chi tiết và các câu hỏi cần chọn: <code>docs/FIRMWARE_UI_DESIGN.md</code>.</p>
   <nav class="nav" id="nav">
     <a href="#editor">1. Sửa tap-hold</a>
@@ -273,7 +273,7 @@ button { font:inherit; color:inherit; }
         <div class="verdict bad"><div><div class="big">1 kiểm thử không đạt: không dựng trình cập nhật</div>
           <div class="hint">Không có gì để nạp. Bàn phím chưa bị đụng tới.</div></div></div>
         <div class="rep">Every key, plain and with Fn (stock Fn = Fn, new Fn = Fn):
-<span class="f">  Fn + U                             got PageUp     expected Delete     FAIL</span>
+<span class="f">  Fn + O                             got PrtSc      expected Home       FAIL</span>
   82 keys compared; lines above are the configured keys and any failure</div>
         <p class="hint" style="margin:0">Dòng FAIL là chỗ firmware dựng ra khác với điều cấu hình nói. Đây là lỗi của công cụ, không phải của
         bạn: giữ lại thư mục kết quả và báo lại. Ví dụ trên là giả định để thấy giao diện.</p>
@@ -324,17 +324,17 @@ const FN = {"Esc":"`","7":"F7","Tab":"Caps","M":"@voldown","1":"F1","8":"F8",","
   "4":"F4","-":"F11","[":"Pause","F":"@mright","'":"PgUp","5":"F5","=":"F12","]":"Ins","6":"F6","\\":"Del",
   "N":"@mute","RWin":"@menu","W":"@lclick","R":"@rclick","X":"@wheelup","C":"@wheeldown"};
 // Icons in a 20 x 16 box centred on 0,0, stroked in currentColor.
-const MOUSE = (x) => `<rect x="${x - 3.5}" y="-6" width="7" height="12" rx="3.5"/><path d="M${x - 3.5} -1.5H${x + 3.5}M${x} -6V-1.5"/>`;
+const MOUSE = (x) => `<rect x="${x - 3.5}" y="-6" width="7" height="12" rx="3.5"/><path d="M${x - 3.5} 0H${x + 3.5}M${x} -6V0"/>`;
 const SPEAKER = `<path class="solid" d="M-7 -2.2H-4.6L-1 -5.6V5.6L-4.6 2.2H-7Z"/>`;
 const ICONS = {
-  lclick: MOUSE(0) + `<path class="solid" d="M0 -6A3.5 3.5 0 0 0 -3.5 -2.5V-1.5H0Z"/>`,
-  rclick: MOUSE(0) + `<path class="solid" d="M0 -6A3.5 3.5 0 0 1 3.5 -2.5V-1.5H0Z"/>`,
+  lclick: MOUSE(0) + `<path class="solid" d="M0 -6A3.5 3.5 0 0 0 -3.5 -2.5V0H0Z"/>`,
+  rclick: MOUSE(0) + `<path class="solid" d="M0 -6A3.5 3.5 0 0 1 3.5 -2.5V0H0Z"/>`,
   mup: MOUSE(-2.5) + `<path d="M5 3.5V-4M3 -2L5 -4L7 -2"/>`,
   mdown: MOUSE(-2.5) + `<path d="M5 -3.5V4M3 2L5 4L7 2"/>`,
   mleft: MOUSE(3) + `<path d="M-2.5 0H-9M-7 -2L-9 0L-7 2"/>`,
   mright: MOUSE(-3) + `<path d="M2.5 0H9M7 -2L9 0L7 2"/>`,
-  wheelup: MOUSE(-2) + `<path class="solid" d="M-2.8 -5H-1.2V-2.5H-2.8Z"/><path d="M4 -1C5.2 -2.4 5.2 -4.6 4 -6M3 -5.5L4 -6.5L5 -5.4"/>`,
-  wheeldown: MOUSE(-2) + `<path class="solid" d="M-2.8 -5H-1.2V-2.5H-2.8Z"/><path d="M4 -5C5.2 -3.6 5.2 -1.4 4 0M3 -0.6L4 0.5L5 -0.5"/>`,
+  wheelup: MOUSE(-2) + `<path class="solid" d="M-2.8 -4.8H-1.2V-1.4H-2.8Z"/><path d="M4 -1C5.2 -2.4 5.2 -4.6 4 -6M3 -5.5L4 -6.5L5 -5.4"/>`,
+  wheeldown: MOUSE(-2) + `<path class="solid" d="M-2.8 -4.8H-1.2V-1.4H-2.8Z"/><path d="M4 -5C5.2 -3.6 5.2 -1.4 4 0M3 -0.6L4 0.5L5 -0.5"/>`,
   mute: SPEAKER + `<path d="M2.5 -2.5L7 2M7 -2.5L2.5 2"/>`,
   voldown: SPEAKER + `<path d="M1.5 -2.5A3.5 3.5 0 0 1 1.5 2.5"/>`,
   volup: SPEAKER + `<path d="M1.5 -2.5A3.5 3.5 0 0 1 1.5 2.5M3.8 -5A7 7 0 0 1 3.8 5"/>`,
@@ -346,10 +346,10 @@ const PICK_ICONS = [["lclick", "Chuột: nhấp trái (0xF7)"], ["rclick", "Chu�
   ["voldown", "Giảm âm lượng (0xBA)"], ["volup", "Tăng âm lượng (0xB9)"]];
 const icon = (name, mine) => `<g class="ic ${mine ? "mine" : ""}">${ICONS[name]}</g>`;
 const MINE = {"H":"\u2190","J":"\u2193","K":"\u2191","L":"\u2192"};          // on the keyboard (HJKL_CapsSpace2_Info)
-const DRAFT = {"U":"PgUp"};                                                   // pending in the draft
+const DRAFT = {"O":"Home"};                                                   // pending in the draft
 const REMOVED = new Set(["I"]);                                                // Fn function removed ("none")
 const TAPHOLD = {"Caps":["Ctrl","Esc"],"SpaceL":["\u2192 L3","Space"],"SpaceR":["\u2192 L4","Space"]};
-const PENDING = new Set(["U","SpaceR"]);
+const PENDING = new Set(["O","SpaceR"]);
 const U = 64, PAD = 6;
 
 function fit(text, w, max) { return Math.min(max, (w - 6) / Math.max(1, [...text].length) / 0.55); }
@@ -406,18 +406,18 @@ const INSP = {
       </div>
     </div>`,
   fn: `
-    <div class="ihead"><h3>Phím U · chỉ số 3</h3><span class="sum">Fn + U = <b style="color:var(--acc)">PgUp</b> (mới, chưa dựng)</span>
+    <div class="ihead"><h3>Phím O · chỉ số 19</h3><span class="sum">Fn + O = <b style="color:var(--acc)">Home</b> (đổi từ PrtSc, chưa dựng)</span>
       <span class="sp"></span><button class="btn">Về như trên bàn phím</button><button class="btn">Về V72 gốc</button></div>
     <div class="ibody">
-      <div class="side"><div class="it">Tap-hold <small>không</small></div><div class="it on">Fn + phím <small>PgUp</small></div>
-        <div class="it">Mặc định <small>U</small></div>
+      <div class="side"><div class="it">Tap-hold <small>không</small></div><div class="it on">Fn + phím <small>Home</small></div>
+        <div class="it">Mặc định <small>O</small></div>
         <div class="note">Fn2 (Alt trái do DIP) và M10 = Fn dùng cùng lớp Fn này.</div></div>
       <div class="form">
-        <div class="frow"><span class="flabel">Fn + U</span><span class="chip on">PgUp</span><button class="btn">Bỏ chức năng Fn</button>
-          <span class="quota">Ô Fn: <b>36/39</b> đã dùng (thêm phím mới dùng một ô; "Bỏ" trả lại ô)</span></div>
+        <div class="frow"><span class="flabel">Fn + O</span><span class="chip on">Home</span><button class="btn">Bỏ chức năng Fn</button>
+          <span class="quota">Ô Fn: <b>39/39</b> đã dùng (đổi chức năng không tốn ô; thêm Fn cho phím chưa có cần bỏ Fn của phím khác)</span></div>
         <div class="picker"><div class="frow"><span class="search">Tìm phím</span></div>
           <div class="grp">Điều hướng</div>
-          <div class="grid"><span>Ins</span><span>Home</span><span class="on">PgUp</span><span>Del</span><span>End</span><span>PgDn</span><span>&#8592;</span><span>&#8593;</span><span>&#8595;</span><span>&#8594;</span></div>
+          <div class="grid"><span>Ins</span><span class="on">Home</span><span>PgUp</span><span>Del</span><span>End</span><span>PgDn</span><span>&#8592;</span><span>&#8593;</span><span>&#8595;</span><span>&#8594;</span></div>
           <div class="grp">Chuột và âm lượng (mã riêng của firmware, biểu tượng theo manual; rê chuột để xem tên)</div>
           <div class="grid">${PICK_ICONS.map(([n, t]) => `<span title="${t}"><svg viewBox="-10 -8 20 16">${icon(n)}</svg></span>`).join("")}</div>
           <div class="grp">Phím F</div>
@@ -429,7 +429,7 @@ const INSP = {
 
 const SCREENS = {
   editor: {sel: "Caps", insp: "taphold", dlg: null, cap: "<b>Chế độ Firmware.</b> Thẻ \"Firmware\" nằm sau 4 layer, tách bằng một vạch, màu nhấn riêng (xanh da trời; Layer 2 đổi sang màu mận để màu xanh chỉ thuộc về Firmware). Bàn phím vẽ bản nháp firmware theo nghĩa \"Fn + phím\": chữ to ở giữa là chức năng Fn (màu mực = như V72 gốc, màu nhấn = đã đổi), chữ nhỏ phía trên là phím đó; phím không có chức năng Fn để trống ở giữa. Phím tap-hold vẽ như thiết kế đã duyệt, chấm = thay đổi chưa dựng. Inspector có 3 mục: Tap-hold, Fn + phím, Mặc định. Nút chính đổi từ \"Ghi\" thành \"Dựng và kiểm thử\"; không có gì gửi xuống bàn phím ở màn này."},
-  fn: {sel: "U", insp: "fn", dlg: null, cap: "<b>Fn + phím.</b> Cùng bảng chọn phím như layer nhưng chỉ có mã bàn phím (firmware chỉ lưu một mã HID). Hiện số ô Fn còn trống (39 ô). \"Bỏ chức năng Fn\" ứng với giá trị \"none\" của cấu hình. Phím I trên hình là ví dụ đã bỏ: giữa để trống, viền màu nhấn vì khác bản trên bàn phím."},
+  fn: {sel: "O", insp: "fn", dlg: null, cap: "<b>Fn + phím.</b> Cùng bảng chọn phím như layer nhưng chỉ có mã bàn phím (firmware chỉ lưu một mã HID). Hiện số ô Fn đã dùng (39 ô; bản trên bàn phím đã dùng hết, nên Fn + U chẳng hạn bị từ chối kèm lý do). \"Bỏ chức năng Fn\" ứng với giá trị \"none\" của cấu hình. Phím I trên hình là ví dụ đã bỏ: giữa để trống, viền màu nhấn vì khác bản trên bàn phím."},
   build: {sel: "Caps", insp: "taphold", dlg: "d-build", cap: "<b>Dựng và kiểm thử.</b> Một hộp thoại: tên bản build (gợi ý sẵn), rồi các bước chạy trên giả lập với số đếm thật từ báo cáo. Khoảng 3-4 giây. Khối thông tin luôn được thêm (để ứng dụng đọc lại và kiểm sau khi nạp)."},
   result: {sel: "Caps", insp: "taphold", dlg: "d-result", cap: "<b>Đạt.</b> CheckSum in to, vì người dùng phải so nó trong trình cập nhật. Báo cáo đầy đủ mở được tại chỗ. \"Nạp lên bàn phím...\" chỉ bật cho bản vừa đạt kiểm thử trong phiên này và khi bản nháp chưa đổi sau đó."},
   fail: {sel: "Caps", insp: "taphold", dlg: "d-fail", cap: "<b>Không đạt.</b> Không có trình cập nhật nên không có đường nạp. Hiện đúng các dòng FAIL của báo cáo."},

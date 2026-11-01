@@ -1,8 +1,13 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import type { Action, BackupView, ErrorView } from "./bindings/ipc";
+  import type { Action, BackupView, ErrorView, FwBuiltView, FwEditInput } from "./bindings/ipc";
   import BackupsDialog from "./components/BackupsDialog.svelte";
   import DiffDialog from "./components/DiffDialog.svelte";
+  import FwBuildDialog from "./components/FwBuildDialog.svelte";
+  import FwBuildsDialog from "./components/FwBuildsDialog.svelte";
+  import FwFlashDialog from "./components/FwFlashDialog.svelte";
+  import FwInspector from "./components/FwInspector.svelte";
+  import FwKeyboard from "./components/FwKeyboard.svelte";
   import Inspector from "./components/Inspector.svelte";
   import Keyboard from "./components/Keyboard.svelte";
   import Menu from "./components/Menu.svelte";
@@ -10,7 +15,7 @@
   import Progress from "./components/Progress.svelte";
   import ReportDialog from "./components/ReportDialog.svelte";
   import { hasKey, PRODUCT_NAME, systemLang } from "./lib/i18n";
-  import { ipc, onDevicesChanged, onProgress } from "./lib/ipc";
+  import { ipc, onDevicesChanged, onFwBuild, onProgress } from "./lib/ipc";
   import { applyTheme, store, type Theme } from "./lib/store.svelte";
 
   const t = store.t;
@@ -31,6 +36,14 @@
   const nChanges = $derived(snap?.changes.length ?? 0);
   const linkedHere = $derived(snap?.assist.linked.filter((l) => l.layer === store.layer) ?? []);
   let backups = $state<BackupView[]>([]);
+  let fwBuilt = $state<FwBuiltView[]>([]);
+  const fw = $derived(snap?.fw ?? null);
+  const fwReady = $derived(ready && !!fw && !fw.stock_error && fw.keys.length > 0);
+  const fwMode = $derived(store.mode === "firmware" && fwReady);
+  const selFw = $derived(store.selected !== null ? (fw?.keys[store.selected] ?? null) : null);
+  const fwTag = $derived(
+    fw?.on_keyboard_tag != null ? "0x" + fw.on_keyboard_tag.toString(16).toUpperCase().padStart(4, "0") : "",
+  );
   /** False until the first search for keyboards has finished: `data-state` is "starting" until then. */
   let started = $state(false);
   let confirmRead = $state(false);
@@ -53,7 +66,29 @@
     void store.run("edit", () => ipc.assign(layers, index, action));
   }
 
+  function fwEdit(edit: FwEditInput) {
+    void store.run("edit", () => ipc.fwEdit(edit));
+  }
+
+  /** Opens the build dialog on a fresh form (a finished build of before is put away). */
+  function openBuild() {
+    if (!fwReady || store.busy) return;
+    void store.run("edit", ipc.fwCloseBuild).then(() => (store.dialog = "fw-build"));
+  }
+
+  /** Also cancels a running build: its result is then ignored when it arrives. */
+  function closeBuild() {
+    store.dialog = null;
+    void ipc.fwCloseBuild().then((s) => store.apply(s));
+  }
+
+  async function openFwBuilds() {
+    fwBuilt = await ipc.fwBuilds();
+    store.dialog = "fw-builds";
+  }
+
   function save() {
+    if (fwMode) return openBuild();
     if (!ready || nChanges === 0 || assistBlocked || store.busy) return;
     void store.run("prepare", ipc.prepareWrite);
   }
@@ -91,18 +126,21 @@
       save();
     } else if (ctrl && !e.shiftKey && e.key.toLowerCase() === "z" && !inField(e)) {
       e.preventDefault();
-      void store.run("edit", ipc.undo);
+      void store.run("edit", fwMode ? ipc.fwUndo : ipc.undo);
     } else if (
       ctrl &&
       (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z")) &&
       !inField(e)
     ) {
       e.preventDefault();
-      void store.run("edit", ipc.redo);
+      void store.run("edit", fwMode ? ipc.fwRedo : ipc.redo);
     } else if (!ctrl && !e.altKey && /^[1-9]$/.test(e.key) && !inField(e)) {
       const n = Number(e.key) - 1;
-      if (model && n < model.layers.length) store.layer = n;
-    } else if (e.key === "Delete" && !inField(e) && selKey && selSlot?.kind !== "empty") {
+      if (model && n < model.layers.length) {
+        store.layer = n;
+        store.mode = "layers";
+      }
+    } else if (e.key === "Delete" && !inField(e) && !fwMode && selKey && selSlot?.kind !== "empty") {
       assign([store.layer], { type: "empty" });
     } else if (e.key === "Escape" && !inField(e)) {
       store.selected = null;
@@ -117,6 +155,7 @@
     let refreshTimer: ReturnType<typeof setTimeout> | undefined;
     const unlisten = [
       onProgress((p) => (store.progress = p)),
+      onFwBuild(() => void store.peek()),
       onDevicesChanged(() => {
         clearTimeout(refreshTimer);
         refreshTimer = setTimeout(() => void store.run("refresh", ipc.refresh), 300);
@@ -153,7 +192,7 @@
 <svelte:window {onkeydown} />
 
 <div
-  class="app l{store.layer}"
+  class="app {fwMode ? 'fw' : `l${store.layer}`}"
   class:idle={!ready}
   data-state={started ? phase : "starting"}
   data-busy={store.busy ?? ""}
@@ -219,7 +258,26 @@
             onclick={() => menuAction(close, () => void store.run("edit", ipc.exportFile))}
             >{t("export_file")}</button
           >
-          {#if ready && model}
+          <hr />
+          <button
+            disabled={!fwReady}
+            onclick={() => menuAction(close, () => void openFwBuilds())}
+            data-testid="menu-fw-builds">{t("fw_menu_builds")}</button
+          >
+          <button
+            disabled={!fwReady}
+            onclick={() =>
+              menuAction(close, () => {
+                store.mode = "firmware";
+                void store.run("edit", ipc.fwImport);
+              })}>{t("fw_menu_import")}</button
+          >
+          <button
+            disabled={!fwReady}
+            onclick={() => menuAction(close, () => void store.run("edit", ipc.fwExport))}
+            >{t("fw_menu_export")}</button
+          >
+          {#if ready && model && !fwMode}
             <hr />
             <div class="label">{t("copy_layer_to", { layer: model.layers[store.layer]?.label ?? "" })}</div>
             <div class="row">
@@ -262,49 +320,116 @@
           <button
             role="tab"
             class="layer-tab l{i}"
-            aria-selected={store.layer === i}
-            class:active={store.layer === i}
-            onclick={() => (store.layer = i)}
+            aria-selected={!fwMode && store.layer === i}
+            class:active={!fwMode && store.layer === i}
+            onclick={() => {
+              store.layer = i;
+              store.mode = "layers";
+            }}
             title={t("led", { name: l.led_name })}
             data-testid={`layer-${i}`}
             ><span class="led" style:background={l.led} style:border-color={l.led === "#ffffff" ? "" : l.led}
             ></span>{t("layer", { n: l.label })}{#if n > 0}<span class="count">{n}</span>{/if}</button
           >
         {/each}
+        {#if fw}
+          <span class="vsep" aria-hidden="true"></span>
+          <button
+            role="tab"
+            class="layer-tab fw-tab fw"
+            aria-selected={fwMode}
+            class:active={fwMode}
+            disabled={!fwReady}
+            onclick={() => (store.mode = "firmware")}
+            title={fw.stock_error ? t("fw_unavailable") : t("fw_tab_title")}
+            data-testid="fw-tab"
+            ><svg class="chip-icon" viewBox="0 0 16 16" aria-hidden="true"
+              ><rect x="3" y="3" width="10" height="10" rx="1.5" /><path
+                d="M6 1v2M10 1v2M6 13v2M10 13v2M1 6h2M1 10h2M13 6h2M13 10h2"
+              /></svg
+            >{t("fw_tab")}{#if fw.changes > 0}<span class="count">{fw.changes}</span>{/if}</button
+          >
+        {/if}
       </div>
-      <div class="edit">
-        <button
-          class="ghost"
-          disabled={!snap.can_undo || !!store.busy}
-          onclick={() => void store.run("edit", ipc.undo)}
-          title="Ctrl+Z"
-          data-testid="undo">{t("undo")}</button
-        >
-        <button
-          class="ghost"
-          disabled={!snap.can_redo || !!store.busy}
-          onclick={() => void store.run("edit", ipc.redo)}
-          title="Ctrl+Y"
-          data-testid="redo">{t("redo")}</button
-        >
-        <button
-          class="ghost"
-          disabled={nChanges === 0 || !!store.busy}
-          onclick={() => void store.run("edit", ipc.revert)}
-          data-testid="revert">{t("revert")}</button
-        >
-        <button
-          class="primary"
-          disabled={nChanges === 0 || assistBlocked || !!store.busy}
-          onclick={save}
-          title="Ctrl+S"
-          data-testid="save">{nChanges > 0 ? t("save_n", { n: nChanges }) : t("save_none")}</button
-        >
-      </div>
+      {#if fwMode && fw}
+        <div class="edit">
+          <button
+            class="ghost"
+            disabled={!fw.can_undo || !!store.busy}
+            onclick={() => void store.run("edit", ipc.fwUndo)}
+            title="Ctrl+Z"
+            data-testid="undo">{t("undo")}</button
+          >
+          <button
+            class="ghost"
+            disabled={!fw.can_redo || !!store.busy}
+            onclick={() => void store.run("edit", ipc.fwRedo)}
+            title="Ctrl+Y"
+            data-testid="redo">{t("redo")}</button
+          >
+          <button
+            class="ghost"
+            disabled={fw.changes === 0 || !!store.busy}
+            onclick={() => void store.run("edit", ipc.fwRevert)}
+            data-testid="revert">{t("revert")}</button
+          >
+          <button
+            class="primary"
+            disabled={!!store.busy}
+            onclick={openBuild}
+            title="Ctrl+S"
+            data-testid="fw-build">{t("fw_build_button")}</button
+          >
+        </div>
+      {:else}
+        <div class="edit">
+          <button
+            class="ghost"
+            disabled={!snap.can_undo || !!store.busy}
+            onclick={() => void store.run("edit", ipc.undo)}
+            title="Ctrl+Z"
+            data-testid="undo">{t("undo")}</button
+          >
+          <button
+            class="ghost"
+            disabled={!snap.can_redo || !!store.busy}
+            onclick={() => void store.run("edit", ipc.redo)}
+            title="Ctrl+Y"
+            data-testid="redo">{t("redo")}</button
+          >
+          <button
+            class="ghost"
+            disabled={nChanges === 0 || !!store.busy}
+            onclick={() => void store.run("edit", ipc.revert)}
+            data-testid="revert">{t("revert")}</button
+          >
+          <button
+            class="primary"
+            disabled={nChanges === 0 || assistBlocked || !!store.busy}
+            onclick={save}
+            title="Ctrl+S"
+            data-testid="save">{nChanges > 0 ? t("save_n", { n: nChanges }) : t("save_none")}</button
+          >
+        </div>
+      {/if}
     </nav>
   {/if}
 
   <div class="banners">
+    {#if fwMode && fw}
+      <div class="fw-line" data-testid="fw-line">
+        <span class="fw-label">{t("fw_on_keyboard")}</span>
+        {#if fw.on_keyboard}
+          <span class="mono">{fw.on_keyboard}</span>
+          {#if fwTag}<span class="mono">{t("fw_checksum")} {fwTag}</span>{/if}
+        {:else}
+          <span class="muted">{t("fw_unknown")}</span>
+        {/if}
+        <span class="note"
+          >{fw.changes > 0 ? t("fw_draft_changes", { n: fw.changes }) : t("fw_draft_none")}</span
+        >
+      </div>
+    {/if}
     {#if snap && snap.assist.running.length > 0}
       <div class="banner warn" data-testid="assist-banner">
         <div><b>{t("assist_running_title")}</b> {t("assist_running_text")}</div>
@@ -369,7 +494,17 @@
   </div>
 
   <main class="stage">
-    {#if ready && model}
+    {#if fwMode && model && fw}
+      <div class="kb-wrap">
+        <FwKeyboard
+          {model}
+          keys={fw.keys}
+          selected={store.selected}
+          label={t("fw_keyboard_label")}
+          onselect={(i) => (store.selected = i)}
+        />
+      </div>
+    {:else if ready && model}
       <div class="kb-wrap">
         <Keyboard
           {model}
@@ -440,7 +575,18 @@
     {/if}
   </main>
 
-  {#if ready && model && store.catalog}
+  {#if fwMode && fw && model && store.catalog}
+    <FwInspector
+      {fw}
+      keyView={selKey}
+      key={selFw}
+      catalog={store.catalog}
+      lang={store.lang}
+      disabled={!!store.busy}
+      {t}
+      onedit={fwEdit}
+    />
+  {:else if ready && model && store.catalog}
     <Inspector
       {model}
       keyView={selKey}
@@ -457,7 +603,34 @@
   {/if}
 </div>
 
-{#if snap?.plan && model}
+{#if fw?.flash && model}
+  <FwFlashDialog
+    flash={fw.flash}
+    {model}
+    busy={!!store.busy}
+    {t}
+    onlaunch={() => void store.run("flash", ipc.fwFlashLaunch)}
+    onopenfolder={() => void ipc.fwOpenFolder(fw?.build?.dir ?? "")}
+    onclose={() => void store.run("edit", ipc.fwFlashClose)}
+  />
+{:else if store.dialog === "fw-build" && fw}
+  <FwBuildDialog
+    {fw}
+    busy={!!store.busy}
+    {t}
+    onbuild={(name) => void store.run("build", () => ipc.fwBuild(name))}
+    onflash={() => void store.run("flash", ipc.fwFlashPrepare).then(() => (store.dialog = null))}
+    onopenfolder={(dir) => void ipc.fwOpenFolder(dir)}
+    onclose={closeBuild}
+  />
+{:else if store.dialog === "fw-builds"}
+  <FwBuildsDialog
+    builds={fwBuilt}
+    {t}
+    onopenfolder={(dir) => void ipc.fwOpenFolder(dir)}
+    onclose={() => (store.dialog = null)}
+  />
+{:else if snap?.plan && model}
   <DiffDialog
     plan={snap.plan}
     {model}
@@ -585,6 +758,42 @@
     box-shadow: inset 0 0 0 1px var(--acc);
     color: var(--acc);
     font-weight: 600;
+  }
+  .vsep {
+    width: 1px;
+    align-self: stretch;
+    margin: 2px 4px;
+    background: var(--line);
+  }
+  /* The firmware tab always wears the firmware colour, also while a layer is shown. */
+  .fw-tab {
+    color: var(--acc);
+    border-color: color-mix(in srgb, var(--acc) 55%, var(--line));
+  }
+  .chip-icon {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+  }
+  .fw-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 14px;
+    padding: 7px 12px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--acc) 8%, var(--paper));
+    border-left: 3px solid var(--acc);
+    font-size: 13.5px;
+  }
+  .fw-label {
+    font-weight: 600;
+    color: var(--acc);
+  }
+  .fw-line .note {
+    margin-left: auto;
   }
   .count {
     font: 600 11.5px/1 var(--font-key);

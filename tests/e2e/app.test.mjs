@@ -255,3 +255,101 @@ describe("keyboard layer editor (simulated keyboard)", () => {
     await waitIdle(browser);
   });
 });
+
+describe("firmware mode (simulated keyboard, real build pipeline)", () => {
+  let app;
+  before(async () => {
+    app = await openApp();
+    await waitState(app.browser, "ready");
+    // The keyboard runs the HJKL_CapsSpace2_Info build: reconnect so its info block is read.
+    await sim(app.browser, "info_on");
+    await sim(app.browser, "unplug");
+    await sim(app.browser, "replug");
+    await waitState(app.browser, "ready");
+  });
+  after(async () => app?.close());
+
+  const text = async (browser, id) => (await byTest(browser, id)).getText();
+  const attr = async (browser, id, name) => (await byTest(browser, id)).getAttribute(name);
+
+  it("shows the firmware on the keyboard and its Fn layer", async () => {
+    const { browser } = app;
+    await click(browser, "fw-tab");
+    assert.match(await text(browser, "fw-line"), /HJKL_CapsSpace2_Info.*0x1321/s);
+    // Fn + H is Left (patched), Fn + S is mouse left (an icon), A has no Fn function.
+    assert.match(await attr(browser, "fwkey-H", "aria-label"), /Fn \+ H: Left/);
+    assert.match(await attr(browser, "fwkey-S", "aria-label"), /Fn \+ S: Mouse: move left/);
+    assert.equal(await attr(browser, "fwkey-A", "aria-label"), "A");
+  });
+
+  it("refuses an edit the firmware cannot hold, accepts one it can, undoes it", async () => {
+    const { browser } = app;
+    await click(browser, "fwkey-Q");
+    await click(browser, "fw-code-04");
+    await waitIdle(browser);
+    assert.equal(await attr(browser, "error-banner", "data-code"), "fw_edit_refused");
+    await click(browser, "fwkey-O");
+    await click(browser, "fw-code-4a");
+    await waitIdle(browser);
+    assert.match(await text(browser, "fw-tab"), /1/);
+    assert.match(await attr(browser, "fwkey-O", "aria-label"), /Fn \+ O: Home/);
+    await click(browser, "undo");
+    await waitIdle(browser);
+    assert.match(await attr(browser, "fwkey-O", "aria-label"), /Fn \+ O: Print Screen/);
+    await click(browser, "redo");
+    await waitIdle(browser);
+  });
+
+  it("builds, tests in the emulator, flashes with the (simulated) updater and checks", async () => {
+    const { browser } = app;
+    await click(browser, "fw-build");
+    await (await byTest(browser, "fw-build-dialog")).waitForDisplayed({ timeout: 5000 });
+    const name = await (await byTest(browser, "fw-build-name")).getValue();
+    assert.equal(name, "HJKL_CapsSpace2_Info_2");
+    // Records each step shown as running, and whether later steps were waiting at that moment.
+    await browser.execute(() => {
+      const w = /** @type {any} */ (window);
+      w.__fwRunning = [];
+      w.__fwWaiting = false;
+      w.__fwObserver = new MutationObserver(() => {
+        const rows = [...document.querySelectorAll('[data-testid="fw-build-steps"] li')];
+        const run = rows.find((li) => li.dataset.state === "running");
+        if (run && !w.__fwRunning.includes(run.dataset.step)) w.__fwRunning.push(run.dataset.step);
+        if (rows.some((li) => li.dataset.state === "waiting")) w.__fwWaiting = true;
+      });
+      w.__fwObserver.observe(document.body, { subtree: true, childList: true, attributes: true });
+    });
+    await click(browser, "fw-build-start");
+    await (await byTest(browser, "fw-build-passed")).waitForDisplayed({ timeout: 60000 });
+    await waitIdle(browser);
+    const progress = await browser.execute(() => {
+      const w = /** @type {any} */ (window);
+      w.__fwObserver.disconnect();
+      return { running: w.__fwRunning, waiting: w.__fwWaiting };
+    });
+    assert.ok(progress.waiting, "steps not reached yet are shown as waiting");
+    assert.ok(
+      progress.running.length >= 3 && progress.running.includes("tap_hold"),
+      `the running step moves as the tests stream: ${progress.running.join(", ")}`,
+    );
+    const steps = await browser.execute(() =>
+      [...document.querySelectorAll('[data-testid="fw-build-steps"] li')].map((li) => li.dataset.step),
+    );
+    assert.deepEqual(steps, ["image", "keys", "fn", "layers", "tap_hold", "info", "stack", "updater"]);
+    await click(browser, "fw-flash");
+    const flash = await byTest(browser, "fw-flash-dialog");
+    await flash.waitForDisplayed({ timeout: 10000 });
+    await waitIdle(browser);
+    await click(browser, "fw-flash-launch");
+    await (await byTest(browser, "fw-flash-waiting")).waitForDisplayed({ timeout: 5000 });
+    // The simulated updater flashed the build and unplugged the keyboard; it comes back after "Start".
+    await sim(browser, "assist_off");
+    await sim(browser, "replug");
+    await (await byTest(browser, "fw-flash-result")).waitForDisplayed({ timeout: 15000 });
+    assert.match(await text(browser, "fw-flash-result"), /HJKL_CapsSpace2_Info_2/);
+    await click(browser, "fw-flash-close");
+    await waitIdle(browser);
+    assert.match(await text(browser, "fw-line"), /HJKL_CapsSpace2_Info_2/);
+    assert.doesNotMatch(await text(browser, "fw-tab"), /\d/);
+  });
+});
