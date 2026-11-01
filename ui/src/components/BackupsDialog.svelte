@@ -54,8 +54,9 @@
 <style>
   ul {
     list-style: none;
-    margin: 0;
-    padding: 0;
+    /* Room at the sides for the focus ring of the Load buttons, which the scroll area would clip. */
+    margin: 0 -4px;
+    padding: 0 4px;
     max-height: 50vh;
     overflow-y: auto;
   }

@@ -73,6 +73,35 @@ describe("keyboard layer editor (simulated keyboard)", () => {
     await browser.keys("1");
   });
 
+  it("leaves room for focus rings inside the inspector's scroll areas", async () => {
+    const { browser } = app;
+    await click(browser, "key-Q");
+    await (await byTest(browser, "key-search")).waitForDisplayed({ timeout: 5000 });
+    // The ring is a 2px outline 2px away from the element: 4px that a scroll area (overflow other than
+    // visible) clips. Lists the focusable elements whose ring would be cut.
+    const clipped = await browser.execute(() => {
+      const ring = 4;
+      const out = [];
+      for (const el of document.querySelectorAll(".inspector button, .inspector input")) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0) continue;
+        for (let p = el.parentElement; p; p = p.parentElement) {
+          const s = getComputedStyle(p);
+          if (s.overflowX === "visible" && s.overflowY === "visible") continue;
+          const c = p.getBoundingClientRect();
+          const box = { left: c.left + p.clientLeft, right: c.left + p.clientLeft + p.clientWidth };
+          if (r.left - ring < box.left - 0.5 || r.right + ring > box.right + 0.5) {
+            out.push(`${el.dataset.testid ?? el.textContent?.trim()} in .${p.className.split(" ")[0]}`);
+          }
+          break;
+        }
+      }
+      return out;
+    });
+    assert.deepEqual(clipped, []);
+    await browser.keys("Escape");
+  });
+
   it("edits, undoes, redoes and discards", async () => {
     const { browser } = app;
     const before = await select(browser, 2, "M1");

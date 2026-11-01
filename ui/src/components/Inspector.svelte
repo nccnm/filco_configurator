@@ -543,7 +543,10 @@
     display: flex;
     flex-direction: column;
     gap: 1px;
-    padding: 2px 14px 2px 0;
+    /* 4px around the scroll area so a focus ring (2px outline, 2px offset) is not clipped; the negative margin
+       keeps the tabs where they were. */
+    padding: 4px 14px 4px 4px;
+    margin: -2px 0 -2px -4px;
     border-right: 1px solid var(--line);
     /* Short windows: the list scrolls rather than spilling under the window edge. */
     overflow-y: auto;
@@ -571,7 +574,9 @@
   .panel {
     overflow-y: auto;
     min-height: 0;
-    padding: 4px 6px 18px 0;
+    /* Room on the left for a focus ring, which the scroll area would clip; the margin keeps the content in place. */
+    padding: 4px 6px 18px 4px;
+    margin-left: -4px;
     /* A row cut by the bottom edge fades out instead of ending in a hard slice; at the end of the scroll the
        padding keeps the last row clear of the fade. */
     mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
