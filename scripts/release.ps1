@@ -37,17 +37,18 @@ foreach ($f in Get-ChildItem ui/dist/assets -File | Where-Object { $_.Extension 
 
 $installerMb = [math]::Round($setup.Length / 1MB, 2)
 $jsCssKb = [math]::Round($gz / 1KB, 1)
+# 8 MB: 6 MB for the app plus the bundled stock firmware (updater ~1.9 MB, HEX ~0.2 MB) - PLAN.md 12.7.
 [pscustomobject]@{
   Installer = $setup.FullName
   'Size (MB)' = $installerMb
-  'Budget (MB)' = 6
+  'Budget (MB)' = 8
   'JS+CSS gzip (KB)' = $jsCssKb
   'Budget (KB)' = 80
   SHA256 = $hash
 } | Format-List
 
 $ok = $true
-if ($installerMb -gt 6) { Write-Host 'Installer over budget' -ForegroundColor Red; $ok = $false }
+if ($installerMb -gt 8) { Write-Host 'Installer over budget' -ForegroundColor Red; $ok = $false }
 if ($jsCssKb -gt 80) { Write-Host 'JS + CSS over budget' -ForegroundColor Red; $ok = $false }
 
 if ($InstallTest) {
@@ -63,6 +64,11 @@ if ($InstallTest) {
       $installed.VersionInfo.ProductVersion -ne $built.VersionInfo.ProductVersion) {
     Write-Host 'installed exe is not this build' -ForegroundColor Red; exit 1
   }
+  # The stock firmware and updater must ship with the app (for flashing on a clean machine).
+  $hex = Get-ChildItem $dir -Recurse -Filter '*.hex' | Select-Object -First 1
+  $upd = Get-ChildItem $dir -Recurse -Filter 'M10SP_72US_V72_stock.exe' | Select-Object -First 1
+  if (-not $hex -or -not $upd) { Write-Host 'firmware not bundled in the installer' -ForegroundColor Red; exit 1 }
+  Write-Host "==> firmware bundled: $($hex.Name), $($upd.Name)" -ForegroundColor Green
   Write-Host '==> silent uninstall' -ForegroundColor Cyan
   Start-Process (Join-Path $dir 'uninstall.exe') -ArgumentList '/S' -Wait
   # The NSIS uninstaller copies itself to %TEMP% and returns at once; wait for the files to go.

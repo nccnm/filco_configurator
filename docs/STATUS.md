@@ -3,6 +3,29 @@
 Nhánh `feat/initial-app` (chưa merge vào `main`, không có remote, chưa push). Bản giao việc: `docs/BRIEF.md`; kế hoạch
 đã duyệt: `docs/PLAN.md` (bản HTML `docs/plan.html`); các quyết định phát sinh: `docs/DECISIONS.md` (D1-D19).
 
+## Cập nhật giai đoạn 2 (2026-11-01): đọc + hiển thị cấu hình firmware
+
+Nhánh `feat/firmware`. Phạm vi giai đoạn 2 tách làm hai (PLAN.md mục 12): phần **đọc + hiển thị** làm trong repo này,
+phần **dựng ảnh firmware tùy biến** hoãn sang task riêng (`docs/DEFERRED_FIRMWARE_BUILD.md`; lý do: bộ lọc an toàn
+chặn việc viết code sinh mã máy chèn vào firmware). Đã xong các mốc F1-F4 của phần đọc + hiển thị:
+
+- F1: firmware V72 gốc + trình cập nhật chính hãng vào `firmware/` (có license, SHA-256 kiểm lúc chạy); 5 golden
+  fixtures vào `tests/fixtures/firmware/`; `.gitattributes` giữ nguyên byte.
+- F2: crate `filco-fwinfo` giải mã khối thông tin (lệnh HID 0x30), thuần đọc.
+- F3: lệnh 0x30 trong `filco-protocol` (`Session::read_info`) và `filco-sim` (có khối / NACK như stock);
+  `Device::read_info` ở `filco-service`; ứng dụng đọc khối một lần sau khi đọc 4 layer và đưa ra `snapshot.firmware`;
+  UI vẽ tap-hold trên bàn phím (giữ nhỏ ở trên, gõ nhanh ở giữa, "→ L3" khi giữ vào layer, ô bị khóa, phím giữ-layer
+  tô đậm trên layer đó) và hiện chi tiết trong inspector. Test E2E + script chụp ảnh đã thêm; **ảnh chuẩn chưa sinh**
+  (cần chạy `scripts/e2e.ps1 -Screenshots` trên máy có driver).
+- F4: bộ cài kèm `firmware/` (resource của Tauri). Bộ cài **2,95 MB** (ngân sách mới 8 MB), SHA-256
+  `693018e3afd383cbc243145a103d5894321ca6d530051955e55c817c5d1787f4`. README cập nhật.
+
+Chưa làm: ảnh chuẩn E2E cho view tap-hold (mục trên); task hoãn 12.9 (dựng firmware trong ứng dụng). Trên bàn phím
+thật giai đoạn này vẫn chỉ đọc (0x10, 0x02, 0x30); bản có 0x30 (`HJKL_CapsSpace2_Info`, CheckSum 0x1321) do
+`rea_filco` dựng, người dùng nạp để kiểm.
+
+Phần dưới là trạng thái bản 0.1.0 gốc, giữ nguyên để tham khảo.
+
 **Đêm nay không có lệnh ghi nào gửi xuống bàn phím thật.** Trên bàn phím thật chỉ chạy liệt kê thiết bị, đọc report
 descriptor và phiên đọc trang 0x10 + 0x02 (sau khi kiểm FILCO Assist đã đóng), tổng 44 phiên đọc trang. Mọi luồng ghi
 chạy trên thiết bị giả. Không chạy trình cập nhật firmware.

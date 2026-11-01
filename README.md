@@ -52,13 +52,24 @@ Phím trên hình: viền màu layer là ô đã gán (khác ô trống), chấm
 
 ### An toàn
 
-- Không bao giờ nạp firmware, không gửi lệnh nào ngoài đọc trang (0x10), ghi trang (0x11) và kết thúc (0x02). Tầng
-  truyền chặn ở mức code mọi gói ghi khi không ở trong luồng ghi đã xác nhận.
+- Không bao giờ nạp firmware; không gửi lệnh nào ngoài đọc trang (0x10), đọc khối thông tin firmware (0x30), ghi
+  trang (0x11) và kết thúc (0x02). Tầng truyền chặn ở mức code mọi gói ghi khi không ở trong luồng ghi đã xác nhận.
 - Nếu ứng dụng hay máy tắt giữa lúc ghi, lần mở sau nó đọc bàn phím, so với bản sao lưu và với nội dung định ghi, rồi
   đề nghị khôi phục.
 - Layer gắn với profile của FILCO Assist (đọc `%APPDATA%\FILCO\filco_assist_config.json`, chỉ đọc) được cảnh báo:
   lưu profile đó trong FILCO Assist sẽ dựng lại cả layer và xóa thay đổi làm ở đây.
 - Khi đang giữ Fn, firmware bỏ qua ô layer; lớp Fn nằm cố định trong firmware, ứng dụng này không đổi được.
+
+### Tap-hold và cấu hình trong firmware
+
+Nếu bàn phím đang chạy một bản firmware tùy biến có khối thông tin (lệnh HID 0x30), ứng dụng đọc và **hiển thị** các
+thay đổi đó: phím tap-hold vẽ hành động khi giữ (nhỏ, phía trên) và khi gõ nhanh (nhãn chính), phím "giữ để vào
+layer" được tô đậm trên layer đó, và inspector hiện chi tiết tap-hold cùng các thay đổi Fn + phím. Ô layer của phím
+tap-hold bị khóa vì firmware quyết định. Firmware gốc (hay bản vá cũ không có khối) trả NACK và ứng dụng chỉ không
+hiện phần này. Việc **dựng** firmware tùy biến chưa nằm trong ứng dụng (xem `docs/DEFERRED_FIRMWARE_BUILD.md`).
+
+Bộ cài kèm sẵn firmware V72 gốc và trình cập nhật chính hãng (thư mục `firmware/`, có license, xem `firmware/README.md`)
+để nạp được trên máy khác mà không cần gì thêm.
 
 ## Thêm một model
 
@@ -143,18 +154,23 @@ Runtime của máy (đặt đường dẫn vào biến `MSEDGEDRIVER`, hoặc gi
 |---|---|
 | `crates/filco-core` | ô, trang, diff, mô tả model + schema, sao lưu kiểu `fnmap.py`, file xuất |
 | `crates/filco-protocol` | gói feature report, checksum, phiên đọc / ghi trang, chặn ghi (`WritePolicy`) |
-| `crates/filco-sim` | bàn phím giả theo giao thức, tiêm lỗi |
+| `crates/filco-sim` | bàn phím giả theo giao thức, tiêm lỗi, khối thông tin cho 0x30 |
+| `crates/filco-fwinfo` | giải mã khối thông tin firmware (lệnh 0x30), chỉ đọc |
 | `crates/filco-hid-windows` | HID thật trên Windows (chỗ duy nhất có `unsafe`) |
 | `crates/filco-service` | phiên sửa + undo, luồng ghi an toàn, kho sao lưu, journal, chặn FILCO Assist |
 | `crates/filco-cli` | công cụ dòng lệnh chỉ đọc cho dev (`list`, `caps`, `read`, `decode`, `validate-model`) |
 | `src-tauri` | ứng dụng: trạng thái, lệnh IPC mỏng, kiểu IPC sinh sang TypeScript |
 | `ui` | giao diện Svelte |
 | `models` | mô tả model JSON và schema |
-| `tests` | fixtures (trang layer của chính người dùng, ghi nguồn), golden bytes từ `fnmap.py`, E2E |
+| `firmware` | firmware V72 gốc + trình cập nhật chính hãng (có license), kèm trong bộ cài |
+| `tests` | fixtures (trang layer của chính người dùng, ghi nguồn, firmware golden), golden bytes từ `fnmap.py`, E2E |
 | `docs` | bản giao việc, kế hoạch, quyết định, trạng thái, ảnh chụp |
 
 ## Giấy phép
 
 Chưa chọn (người dùng quyết định trước khi chia sẻ). Font IBM Plex đi kèm theo giấy phép SIL Open Font License 1.1.
-Repo không chứa firmware, bộ cài, manual, code dịch ngược hay file nhị phân nào của Diatec; giao thức và bố cục được mô
-tả lại ở dạng dữ liệu và tài liệu tự viết.
+
+Repo **có chứa** firmware V72 gốc và trình cập nhật chính hãng của Diatec/FILCO trong `firmware/` (người dùng có
+license; xem `firmware/README.md`), kèm trong bộ cài để nạp. Vì vậy repo này là private và không được chuyển sang
+public khi còn các file đó. Ngoài firmware và trình cập nhật đó, phần còn lại không chứa code dịch ngược hay file nhị
+phân nào của Diatec; giao thức và bố cục được mô tả lại ở dạng dữ liệu và tài liệu tự viết.
