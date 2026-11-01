@@ -626,6 +626,17 @@ Giai đoạn này chỉ thêm phần đọc và phân tích, không có crate n�
 tap-hold trên bàn phím và khóa ô layer tương ứng. Không có crate `thumb`, `m0emu`, `filco-fwtest`, `filco-updater`
 hay thao tác vá trong `filco-firmware` ở giai đoạn này; chúng thuộc task 12.9.
 
+### 12.3.1 Thiết kế hiển thị tap-hold (duyệt 2026-11-01)
+
+- Keycap: dòng phụ nhỏ, mờ ở phía trên (đúng chỗ `cap_sub` sẵn có) = hành động khi **giữ**; nhãn chính ở giữa =
+  hành động khi **gõ nhanh** (tap). Ví dụ CapsLock: trên "⌨ Ctrl", giữa "Esc". Legend gốc vẫn in mờ ở góc.
+- Giữ để vào một layer: dòng phụ ghi "→ L3" (mũi tên + số layer theo đèn 1-4). Ví dụ Space trái: trên "→ L3",
+  giữa "Space".
+- Ô layer của phím tap-hold bị khóa (viền đứt như ô không sửa được sẵn có) kèm lý do trong inspector: phím có
+  tap-hold trong firmware nên ô layer không có tác dụng.
+- Phím mà "giữ để vào layer" được tô đậm trên chính layer đó (như trang "M10SP layer setup").
+- Fn + phím đã đổi (từ khối thông tin) hiện trong inspector của phím đó.
+
 ### 12.4 Kiểm chứng (phần đọc + hiển thị)
 
 - Golden từ `rea_filco` (lấy một lần, commit vào `tests/fixtures/firmware/` như dữ liệu): cấu hình TOML, ảnh `.bin`,
