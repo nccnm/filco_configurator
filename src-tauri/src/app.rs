@@ -103,6 +103,7 @@ fn progress_counter(steps: u32, sink: &mut dyn FnMut(ProgressView)) -> impl FnMu
                 IoPhase::Read => "read",
                 IoPhase::Write => "write",
                 IoPhase::Verify => "verify",
+                IoPhase::Info => "info",
             }
             .to_owned(),
             done: p.done,
