@@ -102,17 +102,55 @@ code: string,
  */
 detail: string, };
 
+export type TapHoldView = { index: number, 
+/**
+ * Key id on this model, if the index has a key.
+ */
+key: string | null, 
+/**
+ * Keycap legend of the key.
+ */
+legend: string | null, 
+/**
+ * What a quick tap sends (a key legend), the keycap's main label.
+ */
+tap: string, 
+/**
+ * What holding does: a key legend, or `→ L3` when it turns on a layer. Drawn small above the tap.
+ */
+hold: string, 
+/**
+ * True when holding turns on a layer (the key is bold on that layer).
+ */
+hold_is_layer: boolean, 
+/**
+ * Layer index 0-3 that holding turns on, when `hold_is_layer`.
+ */
+hold_layer: number | null, term_ms: number, };
+
+export type FirmwareEditView = { index: number, key: string | null, legend: string | null, 
+/**
+ * The code the change sets, as a legend; `None` means the Fn function was removed.
+ */
+code: string | null, };
+
+export type FirmwareView = { name: string, tap_holds: Array<TapHoldView>, fn_edits: Array<FirmwareEditView>, keymap_edits: Array<FirmwareEditView>, };
+
 export type Snapshot = { phase: Phase, lang: UiLang, devices: Array<DeviceView>, device: DeviceView | null, model_id: string | null, 
 /**
  * `layers[layer][i]` is the slot of `model.keys[i]`.
  */
-layers: Array<Array<SlotView>>, changes: Array<ChangeView>, can_undo: boolean, can_redo: boolean, assist: AssistView, journal: JournalView | null, plan: PlanView | null, report: ReportView | null, error: ErrorView | null, simulated: boolean, };
+layers: Array<Array<SlotView>>, changes: Array<ChangeView>, can_undo: boolean, can_redo: boolean, assist: AssistView, journal: JournalView | null, plan: PlanView | null, report: ReportView | null, 
+/**
+ * What the connected firmware reports it changed (command 0x30); `None` when it has no info block.
+ */
+firmware: FirmwareView | null, error: ErrorView | null, simulated: boolean, };
 
 export type BackupView = { name: string, path: string, created: string, reason: string | null, problem: string | null, };
 
 export type ProgressView = { layer: number, 
 /**
- * `read`, `write` or `verify`.
+ * `read`, `write`, `verify` or `info`.
  */
 phase: string, done: number, total: number, 
 /**

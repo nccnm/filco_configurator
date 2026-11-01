@@ -319,6 +319,102 @@ impl ErrorView {
     }
 }
 
+/// One tap-hold key as read from the firmware info block, resolved for display.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct TapHoldView {
+    pub index: u8,
+    /// Key id on this model, if the index has a key.
+    pub key: Option<String>,
+    /// Keycap legend of the key.
+    pub legend: Option<String>,
+    /// What a quick tap sends (a key legend), the keycap's main label.
+    pub tap: String,
+    /// What holding does: a key legend, or `→ L3` when it turns on a layer. Drawn small above the tap.
+    pub hold: String,
+    /// True when holding turns on a layer (the key is bold on that layer).
+    pub hold_is_layer: bool,
+    /// Layer index 0-3 that holding turns on, when `hold_is_layer`.
+    pub hold_layer: Option<u8>,
+    pub term_ms: u16,
+}
+
+/// A Fn-layer or default-keymap change from the info block, for the inspector.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct FirmwareEditView {
+    pub index: u8,
+    pub key: Option<String>,
+    pub legend: Option<String>,
+    /// The code the change sets, as a legend; `None` means the Fn function was removed.
+    pub code: Option<String>,
+}
+
+/// What the firmware info block says this build changed. `None` on the snapshot when the firmware has no block.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+pub struct FirmwareView {
+    pub name: String,
+    pub tap_holds: Vec<TapHoldView>,
+    pub fn_edits: Vec<FirmwareEditView>,
+    pub keymap_edits: Vec<FirmwareEditView>,
+}
+
+/// HID keyboard usage code to its keycap legend, or `0xNN` when unknown.
+fn code_legend(code: u8) -> String {
+    usage::keyboard(code).map_or_else(|| format!("0x{code:02x}"), |u| u.legend.to_owned())
+}
+
+impl FirmwareView {
+    /// Builds the display view from a decoded info block, resolving matrix indices to keys of `model` and usage
+    /// codes to legends. `layer_label(0..=3)` gives the short layer name (`L3`).
+    pub fn from_info(info: &filco_fwinfo::Info, model: &ModelDescriptor) -> Self {
+        let key_fields = |index: u8| {
+            let k = model.key_by_index(index);
+            (k.map(|k| k.id.clone()), k.map(|k| k.legend.clone()))
+        };
+        let mut tap_holds = Vec::new();
+        if let Some(t) = &info.tap_key {
+            let (key, legend) = key_fields(t.key);
+            tap_holds.push(TapHoldView {
+                index: t.key,
+                key,
+                legend,
+                tap: code_legend(t.tap),
+                hold: code_legend(t.hold),
+                hold_is_layer: false,
+                hold_layer: None,
+                term_ms: t.term_ms,
+            });
+        }
+        for t in &info.tap_layers {
+            let (key, legend) = key_fields(t.key);
+            tap_holds.push(TapHoldView {
+                index: t.key,
+                key,
+                legend,
+                tap: code_legend(t.tap),
+                hold: format!("\u{2192} L{}", t.layer + 1),
+                hold_is_layer: true,
+                hold_layer: Some(t.layer),
+                term_ms: t.term_ms,
+            });
+        }
+        let edit = |index: u8, code: Option<u8>| {
+            let (key, legend) = key_fields(index);
+            FirmwareEditView {
+                index,
+                key,
+                legend,
+                code: code.map(code_legend),
+            }
+        };
+        FirmwareView {
+            name: info.name.clone(),
+            tap_holds,
+            fn_edits: info.fn_layer.iter().map(|f| edit(f.key, f.code)).collect(),
+            keymap_edits: info.keymap.iter().map(|k| edit(k.key, Some(k.code))).collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
 pub struct Snapshot {
     pub phase: Phase,
@@ -335,6 +431,8 @@ pub struct Snapshot {
     pub journal: Option<JournalView>,
     pub plan: Option<PlanView>,
     pub report: Option<ReportView>,
+    /// What the connected firmware reports it changed (command 0x30); `None` when it has no info block.
+    pub firmware: Option<FirmwareView>,
     pub error: Option<ErrorView>,
     pub simulated: bool,
 }
@@ -351,7 +449,7 @@ pub struct BackupView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 pub struct ProgressView {
     pub layer: u8,
-    /// `read`, `write` or `verify`.
+    /// `read`, `write`, `verify` or `info`.
     pub phase: String,
     pub done: u8,
     pub total: u8,
@@ -522,6 +620,9 @@ pub fn typescript() -> String {
         OutcomeView::decl(&cfg),
         ReportView::decl(&cfg),
         ErrorView::decl(&cfg),
+        TapHoldView::decl(&cfg),
+        FirmwareEditView::decl(&cfg),
+        FirmwareView::decl(&cfg),
         Snapshot::decl(&cfg),
         BackupView::decl(&cfg),
         ProgressView::decl(&cfg),

@@ -2083,6 +2083,7 @@ name = "keyboard-layer-editor"
 version = "0.1.0"
 dependencies = [
  "filco-core",
+ "filco-fwinfo",
  "filco-hid-windows",
  "filco-protocol",
  "filco-service",

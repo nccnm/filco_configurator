@@ -17,9 +17,9 @@ use filco_service::store::{self, BackupStore, timestamp_now};
 use filco_service::writer::{self, LayerOutcome, PrepareError, WriteContext, WritePlan, WriteReport};
 
 use crate::view::{
-    Action, AssistView, BackupView, ChangeView, DeviceView, ErrorView, JournalLayerView, JournalView,
-    LinkedLayerView, ModelView, OutcomeView, Phase, PlanView, ProgressView, ReportView, SlotView, Snapshot,
-    UiLang,
+    Action, AssistView, BackupView, ChangeView, DeviceView, ErrorView, FirmwareView, JournalLayerView,
+    JournalView, LinkedLayerView, ModelView, OutcomeView, Phase, PlanView, ProgressView, ReportView,
+    SlotView, Snapshot, UiLang,
 };
 
 /// Where the app keeps its files.
@@ -48,6 +48,9 @@ struct Conn {
     device: Device,
     model: usize,
     editor: Option<Editor>,
+    /// The firmware info block (command 0x30), read once per successful layer read; `None` when the firmware
+    /// has no block.
+    info: Option<filco_fwinfo::Info>,
 }
 
 pub struct App {
@@ -212,6 +215,7 @@ impl App {
                     device,
                     model: mi,
                     editor: None,
+                    info: None,
                 });
                 self.read_failed = false;
                 self.report = None;
@@ -250,6 +254,9 @@ impl App {
         match conn.device.read_all(&mut counter) {
             Ok(pages) => {
                 self.read_failed = false;
+                // Read the firmware info block once, after the layers. A firmware without one (NACK) leaves
+                // info None; a read error here is not fatal to editing, so it is ignored (info stays None).
+                conn.info = conn.device.read_info(&mut |_| {}).ok().flatten();
                 match Editor::new(model, pages) {
                     Ok(ed) => conn.editor = Some(ed),
                     Err(e) => self.error = Some(ErrorView::new("read_failed", e)),
@@ -707,9 +714,16 @@ impl App {
             journal: self.journal_view(),
             plan,
             report,
+            firmware: self.firmware_view(model),
             error: self.error.clone(),
             simulated: self.simulated,
         }
+    }
+
+    /// The connected firmware's info block as a view, or `None` when there is no connection, model or block.
+    fn firmware_view(&self, model: Option<&ModelDescriptor>) -> Option<FirmwareView> {
+        let info = self.conn.as_ref()?.info.as_ref()?;
+        Some(FirmwareView::from_info(info, model?))
     }
 }
 
@@ -769,6 +783,65 @@ mod tests {
         assert!(!s.can_undo);
         assert_eq!(sim.with(|k| k.flash_writes()), 1);
         assert_eq!(app.backups().len(), 1);
+    }
+
+    fn info_block_of(build: &str) -> [u8; 512] {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../tests/fixtures/firmware")
+            .join(build)
+            .join("image.bin");
+        let image = std::fs::read(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+        image[0xE600..0xE600 + 512].try_into().unwrap()
+    }
+
+    #[test]
+    fn reads_and_shows_the_firmware_info_block() {
+        let tmp = tempfile::tempdir().unwrap();
+        let sim = SimBackend::new(
+            SimKeyboard::new(vec![Page::empty(); 4]).with_info_block(info_block_of("HJKL_CapsSpace2_Info")),
+        );
+        let paths = Paths {
+            backups: tmp.path().join("backups"),
+            state: tmp.path().to_owned(),
+            assist_config: Some(tmp.path().join("filco_assist_config.json")),
+        };
+        let mut app = App::new(Arc::new(sim), &paths, true);
+        app.refresh(&mut |_| {});
+
+        let fw = app
+            .snapshot()
+            .firmware
+            .expect("a patched keyboard reports its config");
+        assert_eq!(fw.name, "HJKL_CapsSpace2_Info");
+        // CapsLock key-hold and two Space layer-holds.
+        assert_eq!(fw.tap_holds.len(), 3);
+        let caps = fw
+            .tap_holds
+            .iter()
+            .find(|t| !t.hold_is_layer)
+            .expect("one key-hold");
+        assert_eq!((caps.tap.as_str(), caps.hold.as_str()), ("Esc", "Ctrl"));
+        let space_l3 = fw.tap_holds.iter().find(|t| t.hold == "\u{2192} L3").unwrap();
+        assert!(space_l3.hold_is_layer);
+        assert_eq!(space_l3.tap, "Space");
+        // H/J/K/L remapped, I removed (code None).
+        assert_eq!(fw.fn_edits.len(), 5);
+        assert!(
+            fw.fn_edits
+                .iter()
+                .any(|e| e.legend.as_deref() == Some("I") && e.code.is_none())
+        );
+    }
+
+    #[test]
+    fn stock_firmware_has_no_info_in_the_snapshot() {
+        let (mut app, _sim, _tmp) = rig();
+        app.refresh(&mut |_| {});
+        assert_eq!(app.snapshot().phase, Phase::Ready);
+        assert!(
+            app.snapshot().firmware.is_none(),
+            "stock firmware has no info block"
+        );
     }
 
     #[test]
