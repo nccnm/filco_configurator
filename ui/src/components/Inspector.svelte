@@ -89,14 +89,20 @@
     "special",
   ] as const;
 
-  // When another key is selected, show its current bytes in the Advanced tab and reset the extra layers.
-  $effect(() => {
-    raw = slot?.hex ?? "";
-    extraLayers = [];
-  });
-
   let panel = $state<HTMLElement>();
   const selection = $derived(keyView && slot ? `${layer}:${keyView.index}` : "");
+  const slotHex = $derived(slot?.hex ?? "");
+
+  // Another key selected: reset the extra layers. The Advanced tab shows the slot's bytes, again when they change;
+  // a new snapshot with the same bytes leaves what is being typed alone.
+  $effect(() => {
+    void selection;
+    extraLayers = [];
+  });
+  $effect(() => {
+    void selection;
+    raw = slotHex;
+  });
   const signed = (b: number) => (b << 24) >> 24;
 
   /** The tab that shows what a slot holds; `b1`, `b2` are its second and third bytes. */
