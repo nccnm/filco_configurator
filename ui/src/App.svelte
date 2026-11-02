@@ -27,8 +27,18 @@
   const slots = $derived(snap?.layers[store.layer] ?? []);
   const selKey = $derived(store.selected !== null ? (model?.keys[store.selected] ?? null) : null);
   const selSlot = $derived(store.selected !== null ? (slots[store.selected] ?? null) : null);
+  /** Tap-hold keys the firmware on the keyboard holds itself (an older build), until the layers take them over. */
+  const firmwareTapHolds = $derived(snap?.tap_hold_upgrade ? [] : (snap?.firmware?.tap_holds ?? []));
   const selTapHold = $derived(
-    selKey ? (snap?.firmware?.tap_holds.find((th) => th.index === selKey.index) ?? null) : null,
+    selKey ? (firmwareTapHolds.find((th) => th.index === selKey.index) ?? null) : null,
+  );
+  // Keys whose tap-hold slot in some layer turns on the layer shown while held: drawn bold there.
+  const holdsInto = $derived(
+    new Set(
+      (model?.keys ?? []).flatMap((_, i) =>
+        snap?.layers.some((l) => l[i]?.hold_layer === store.layer) ? [i] : [],
+      ),
+    ),
   );
   const selFnEdit = $derived(
     selKey ? (snap?.firmware?.fn_edits.find((e) => e.index === selKey.index) ?? null) : null,
@@ -62,16 +72,17 @@
   }
 
   /**
-   * Gives the selected key an action. Once it is taken, a mapping (not a reset to the default) selects the next
-   * key in reading order, skipping tap-hold keys whose slot cannot be assigned, so a row is mapped key after key.
+   * Gives the selected key an action. Once it is taken, a mapping (not a reset to the default, nor a tap-hold,
+   * whose fields are set one after the other) selects the next key in reading order, so a row is mapped key after
+   * key.
    */
   async function assign(layers: number[], action: Action) {
     if (!selKey || !model) return;
     const from = selKey;
     const ok = await store.run("edit", () => ipc.assign(layers, from.index, action));
-    if (!ok || action.type === "empty" || store.selected !== model.keys.indexOf(from)) return;
-    const tapHolds = new Set(snap?.firmware?.tap_holds.map((th) => th.index) ?? []);
-    store.selected = model.keys.indexOf(nextKey(model.keys, from, (k) => tapHolds.has(k.index)));
+    if (!ok || action.type === "empty" || action.type === "tap_hold") return;
+    if (store.selected !== model.keys.indexOf(from)) return;
+    store.selected = model.keys.indexOf(nextKey(model.keys, from));
   }
 
   function fwEdit(edit: FwEditInput) {
@@ -97,8 +108,52 @@
 
   function save() {
     if (fwMode) return openBuild();
-    if (!ready || nChanges === 0 || assistBlocked || store.busy) return;
-    void store.run("prepare", ipc.prepareWrite);
+    if (!ready || assistBlocked || store.busy) return;
+    if (nChanges === 0 && !snap?.tap_hold_upgrade) return;
+    void saveLayers();
+  }
+
+  /**
+   * Saving with tap-hold slots the keyboard's firmware does not read yet: first build (and test) a firmware that
+   * does, so its checksum is known when the diff is shown; then write the layers as usual, then flash.
+   */
+  async function saveLayers() {
+    if (snap?.tap_hold_upgrade && !(await buildForTapHold())) return;
+    if (nChanges > 0) await store.run("prepare", ipc.prepareWrite);
+    else await flashForTapHold();
+  }
+
+  /** The firmware draft with tap-hold per layer, built and tested. A failed build opens the build dialog. */
+  async function buildForTapHold(): Promise<boolean> {
+    if (!store.snap?.fw) return false;
+    if (!store.snap.fw.layer_tap_hold) {
+      const ok = await store.run("edit", () => ipc.fwEdit({ type: "set_layer_tap_hold", on: true }));
+      if (!ok) return false;
+    }
+    const b = store.snap?.fw?.build;
+    if (!(b?.passed && b.has_updater && !b.stale)) {
+      const name = store.snap?.fw?.suggested_name ?? "LayerTap";
+      store.dialog = "fw-build";
+      await store.run("build", () => ipc.fwBuild(name));
+    }
+    const built = store.snap?.fw?.build;
+    if (!(built?.passed && built.has_updater)) return false;
+    store.dialog = null;
+    return true;
+  }
+
+  /** Backs up the layers and starts the updater; the flash dialog then shows the checksum to check before Start. */
+  async function flashForTapHold() {
+    if (!(await store.run("flash", ipc.fwFlashPrepare))) return;
+    if (store.snap?.fw?.flash) await store.run("flash", ipc.fwFlashLaunch);
+  }
+
+  async function writeLayers() {
+    const upgrade = !!snap?.tap_hold_upgrade;
+    const ok = await store.run("write", ipc.executeWrite);
+    if (!ok || !upgrade || !store.snap?.report?.succeeded) return;
+    await store.run("edit", ipc.dismissReport);
+    await flashForTapHold();
   }
 
   function readAgain() {
@@ -418,10 +473,15 @@
           >
           <button
             class="primary"
-            disabled={nChanges === 0 || assistBlocked || !!store.busy}
+            disabled={(nChanges === 0 && !snap.tap_hold_upgrade) || assistBlocked || !!store.busy}
             onclick={save}
             title="Ctrl+S"
-            data-testid="save">{nChanges > 0 ? t("save_n", { n: nChanges }) : t("save_none")}</button
+            data-testid="save"
+            >{nChanges > 0
+              ? t("save_n", { n: nChanges })
+              : snap.tap_hold_upgrade
+                ? t("save_firmware")
+                : t("save_none")}</button
           >
         </div>
       {/if}
@@ -523,8 +583,9 @@
           {model}
           {slots}
           selected={store.selected}
-          tapHolds={snap?.firmware?.tap_holds ?? []}
+          tapHolds={firmwareTapHolds}
           layer={store.layer}
+          {holdsInto}
           label={t("keyboard_label", { n: model.layers[store.layer]?.label ?? "" })}
           onselect={(i) => (store.selected = i)}
         />
@@ -607,9 +668,10 @@
       base={baseSlot}
       tapHold={selTapHold}
       fnEdit={selFnEdit}
+      layerTapHold={snap?.firmware?.layer_tap_hold ?? false}
       layer={store.layer}
       catalog={store.catalog}
-      disabled={!!store.busy || selTapHold !== null}
+      disabled={!!store.busy}
       {t}
       onassign={assign}
     />
@@ -651,7 +713,8 @@
     progress={store.progress}
     {t}
     oncancel={() => void store.run("edit", ipc.cancelWrite)}
-    onwrite={() => void store.run("write", ipc.executeWrite)}
+    upgradeTag={snap.tap_hold_upgrade ? (fw?.build?.tag ?? null) : null}
+    onwrite={() => void writeLayers()}
   />
 {:else if snap?.report && model}
   <ReportDialog report={snap.report} {model} {t} onclose={() => void store.run("edit", ipc.dismissReport)} />

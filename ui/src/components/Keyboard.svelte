@@ -7,13 +7,24 @@
     slots: SlotView[];
     selected: number | null;
     label: string;
-    /** Tap-hold keys from the firmware info block; they override the layer slot and lock it. */
+    /** Tap-hold keys the firmware holds itself (an older build): they override the layer slot. */
     tapHolds?: TapHoldView[];
     /** Current layer index, so a key that holds into this layer is drawn bold. */
     layer?: number;
+    /** Positions of keys whose tap-hold slot in some layer turns on the current layer while held. */
+    holdsInto?: Set<number>;
     onselect: (i: number) => void;
   }
-  let { model, slots, selected, label, tapHolds = [], layer = 0, onselect }: Props = $props();
+  let {
+    model,
+    slots,
+    selected,
+    label,
+    tapHolds = [],
+    layer = 0,
+    holdsInto = new Set(),
+    onselect,
+  }: Props = $props();
 
   const tapHoldByIndex = $derived(new Map(tapHolds.map((t) => [t.index, t])));
 
@@ -84,16 +95,17 @@
     {@const text = stack(s?.cap_shift, s?.short ?? "")}
     {@const printed = stack(k.shifted, k.legend)}
     {@const showPrint = !empty && s?.short !== k.legend}
-    {@const holdsHere = th?.hold_is_layer && th.hold_layer === layer}
+    {@const slotTh = s?.kind === "tap_hold"}
+    {@const holdsHere = (th?.hold_is_layer && th.hold_layer === layer) || holdsInto.has(i)}
     <g
       class="key"
       class:mkey={k.m_key}
       class:assigned={th ? true : !empty}
-      class:taphold={!!th}
+      class:taphold={!!th || slotTh}
       class:holds-here={holdsHere}
       class:pending={s?.changed}
       class:selected={selected === i}
-      class:locked={th ? true : s && !s.editable}
+      class:locked={!th && s && !s.editable}
       role="button"
       tabindex={selected === i || (selected === null && i === 0) ? 0 : -1}
       aria-pressed={selected === i}
@@ -124,6 +136,24 @@
           font-size={tapSize}
           text-anchor="middle"
           dominant-baseline="central">{th.tap}</text
+        >
+      {:else if slotTh && s}
+        {@const hold = s.cap_sub ?? ""}
+        <text
+          x={g.cx}
+          y={g.cy - 10}
+          class="lg-hold"
+          font-size={fit(hold, g.inner.w, 9.5)}
+          text-anchor="middle"
+          dominant-baseline="central">{hold}</text
+        >
+        <text
+          x={g.cx}
+          y={g.cy + 5}
+          class="lg-main"
+          font-size={Math.min(13, mainSize(s.short, g.inner.w))}
+          text-anchor="middle"
+          dominant-baseline="central">{s.short}</text
         >
       {:else if empty}
         {@const size = fit(printed, g.inner.w, 12)}
@@ -241,7 +271,7 @@
     font-family: var(--font-key);
     font-weight: 600;
   }
-  /* A tap-hold key: the layer slot does not apply (locked), the firmware decides. */
+  /* A tap-hold key, set in the firmware or in the layer slot. */
   .key.taphold .inner {
     fill: color-mix(in srgb, var(--acc) 7%, var(--paper));
   }

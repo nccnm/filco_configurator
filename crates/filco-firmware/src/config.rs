@@ -3,6 +3,8 @@
 //! ```toml
 //! name = "HJKL_CapsSpace2_Info"   # 1-32 letters, digits, '_' or '-'
 //! info_block = true               # optional: add the info block and HID command 0x30
+//! layer_tap_hold = true           # optional: tap-hold keys set per layer in the layer slots (type 8);
+//!                                 # instead of [[tap_hold]]
 //! [fn_layer]                      # Fn + key = code; "none" removes the key's Fn function
 //! H = "Left"
 //! [keymap]                        # default code of a key, every layer and layout
@@ -34,6 +36,8 @@ pub struct Config {
     pub tap_key: Option<(u8, u8, u8, u16)>,
     /// Layer holds: (key, tap, layer 0-3, term_ms).
     pub tap_layers: Vec<(u8, u8, u8, u16)>,
+    /// Tap-hold read from the layer slots of type 8 (`layertap.rs`), every key and layer; excludes `tap_hold`.
+    pub layer_tap_hold: bool,
 }
 
 pub const MAX_LAYER_KEYS: usize = crate::taphold::MAX_LAYER_KEYS;
@@ -76,7 +80,17 @@ impl Config {
             .map_err(|e: toml::de::Error| Error::Config(e.to_string()))?;
         let mut unknown: Vec<&String> = cfg
             .keys()
-            .filter(|k| !["name", "info_block", "fn_layer", "keymap", "tap_hold"].contains(&k.as_str()))
+            .filter(|k| {
+                ![
+                    "name",
+                    "info_block",
+                    "fn_layer",
+                    "keymap",
+                    "tap_hold",
+                    "layer_tap_hold",
+                ]
+                .contains(&k.as_str())
+            })
             .collect();
         unknown.sort();
         if !unknown.is_empty() {
@@ -139,7 +153,20 @@ impl Config {
             Some(Value::Boolean(b)) => *b,
             Some(_) => return bad("info_block must be true or false"),
         };
-        if c.fn_layer.is_empty() && c.keymap.is_empty() && !c.has_tap_hold() && !c.info_block {
+        c.layer_tap_hold = match cfg.get("layer_tap_hold") {
+            None => false,
+            Some(Value::Boolean(b)) => *b,
+            Some(_) => return bad("layer_tap_hold must be true or false"),
+        };
+        if c.layer_tap_hold && c.has_tap_hold() {
+            return bad("layer_tap_hold replaces [[tap_hold]]: use one of them");
+        }
+        if c.fn_layer.is_empty()
+            && c.keymap.is_empty()
+            && !c.has_tap_hold()
+            && !c.layer_tap_hold
+            && !c.info_block
+        {
             return bad("nothing to change");
         }
         Ok(c)
@@ -209,6 +236,9 @@ impl Config {
         t.insert("name".into(), Value::String(self.name.clone()));
         if self.info_block {
             t.insert("info_block".into(), Value::Boolean(true));
+        }
+        if self.layer_tap_hold {
+            t.insert("layer_tap_hold".into(), Value::Boolean(true));
         }
         if !self.fn_layer.is_empty() {
             let fl: Table = self

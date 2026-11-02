@@ -352,8 +352,8 @@ pub mod e2e {
         Ok(())
     }
 
-    /// `op`: `unplug`, `replug`, `reset`, `assist_on`, `assist_off`, `info_on`, `info_off`, `fault:<json>`,
-    /// `fault_next:<json>`.
+    /// `op`: `unplug`, `replug`, `reset`, `assist_on`, `assist_off`, `info_on`, `info_layer_tap`, `info_off`,
+    /// `fault:<json>`, `fault_next:<json>`.
     #[tauri::command]
     pub async fn e2e_sim<R: Runtime>(
         app: AppHandle<R>,
@@ -373,6 +373,17 @@ pub mod e2e {
             // Give the simulated keyboard the HJKL_CapsSpace2_Info config (as if that firmware were flashed),
             // or take it away. A reconnect + read is needed after for the app to pick it up.
             "info_on" => sim.with(|k| k.set_info_block(Some(info_block()))),
+            // A build with tap-hold per layer (`layer_tap_hold = true`) and nothing else.
+            "info_layer_tap" => {
+                let block = filco_firmware::info::block(&filco_firmware::info::BlockContent {
+                    name: "LayerTap".into(),
+                    layer_tap_hold: true,
+                    ..Default::default()
+                })
+                .map_err(|e| e.to_string())?;
+                let block: [u8; 512] = block.try_into().map_err(|_| "info block size")?;
+                sim.with(|k| k.set_info_block(Some(block)));
+            }
             "info_off" => sim.with(|k| k.set_info_block(None)),
             other => {
                 // `fault:` counts sessions from the start, `fault_next:` from the next session of that command.

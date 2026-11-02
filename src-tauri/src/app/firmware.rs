@@ -304,6 +304,7 @@ impl App {
             },
             FwEditInput::KeyToBase { key } => FwEdit::KeyToBase { key },
             FwEditInput::KeyToStock { key } => FwEdit::KeyToStock { key },
+            FwEditInput::SetLayerTapHold { on } => FwEdit::SetLayerTapHold(on),
         };
         self.fw_edit_with(|s, d| d.apply(s, &e));
     }
@@ -585,6 +586,7 @@ impl App {
                 fn_slots: 39,
                 tap_key_used: 0,
                 tap_layer_used: 0,
+                layer_tap_hold: false,
                 fn_key: 0,
                 suggested_name: String::new(),
                 build: None,
@@ -593,6 +595,7 @@ impl App {
         };
         let fn_key = d.fn_position();
         let w = d.working();
+        let (layer_tap_hold, layer_tap_hold_base) = d.layer_tap_hold();
         let build = self.fw.build.as_ref().map(|b| match b {
             BuildState::Running { name, lines, .. } => FwBuildView {
                 name: name.clone(),
@@ -651,13 +654,15 @@ impl App {
                 .iter()
                 .map(|k| key_view(&d.key(k.index, fn_key), self.lang))
                 .collect(),
-            changes: u32::try_from(d.changed_keys().len()).unwrap_or(0),
+            changes: u32::try_from(d.changed_keys().len()).unwrap_or(0)
+                + u32::from(layer_tap_hold != layer_tap_hold_base),
             can_undo: d.can_undo(),
             can_redo: d.can_redo(),
             fn_slots_used: u32::try_from(d.fn_slots_used()).unwrap_or(0),
             fn_slots: u32::from(filco_firmware::v72::FN_ENTRIES),
             tap_key_used: u32::from(w.tap_key.is_some()),
             tap_layer_used: u32::try_from(w.tap_layers.len()).unwrap_or(0),
+            layer_tap_hold,
             fn_key,
             suggested_name: self.suggested_name(d),
             build,

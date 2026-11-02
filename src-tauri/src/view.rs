@@ -148,8 +148,10 @@ pub struct SlotView {
     pub long: String,
     /// Differs from what the keyboard holds.
     pub changed: bool,
-    /// The editor can produce this kind (types 0-4); others are shown and kept but not edited.
+    /// The editor can produce this kind (types 0-4, 8); others are shown and kept but not edited.
     pub editable: bool,
+    /// For a tap-hold slot that turns on a layer while held: that layer, 0-3 (the key is bold there).
+    pub hold_layer: Option<u8>,
 }
 
 pub fn kind_name(k: SlotKind) -> &'static str {
@@ -160,6 +162,7 @@ pub fn kind_name(k: SlotKind) -> &'static str {
         SlotKind::Consumer { .. } => "consumer",
         SlotKind::System { .. } => "system",
         SlotKind::Macro { .. } => "macro",
+        SlotKind::TapHold { .. } => "tap_hold",
         SlotKind::Other { .. } => "other",
     }
 }
@@ -204,6 +207,14 @@ impl SlotView {
                     Some(cap_mods(&modifier_names(mods))),
                 )
             }
+            // The tap on the main line, the hold small above it, as the keycap of a firmware tap-hold key.
+            SlotKind::TapHold { tap, hold, .. } => (
+                code_legend(tap),
+                Some(
+                    kind.hold_layer()
+                        .map_or_else(|| code_legend(hold), |l| format!("\u{2192} L{}", l + 1)),
+                ),
+            ),
             _ => (label.short, None),
         };
         let cap_shift = match kind {
@@ -219,6 +230,7 @@ impl SlotView {
             long: label.long,
             changed,
             editable: !matches!(kind, SlotKind::Macro { .. } | SlotKind::Other { .. }),
+            hold_layer: kind.hold_layer(),
         }
     }
 }
@@ -355,6 +367,8 @@ pub struct FirmwareView {
     pub tap_holds: Vec<TapHoldView>,
     pub fn_edits: Vec<FirmwareEditView>,
     pub keymap_edits: Vec<FirmwareEditView>,
+    /// The firmware reads tap-hold keys from the layer slots (type 8): the Tap-hold tab of the layer page works.
+    pub layer_tap_hold: bool,
 }
 
 /// HID keyboard usage code to its keycap legend, or `0xNN` when unknown.
@@ -411,6 +425,7 @@ impl FirmwareView {
             tap_holds,
             fn_edits: info.fn_layer.iter().map(|f| edit(f.key, f.code)).collect(),
             keymap_edits: info.keymap.iter().map(|k| edit(k.key, Some(k.code))).collect(),
+            layer_tap_hold: info.layer_tap_hold == Some(filco_core::slot::type_code::TAP_HOLD),
         }
     }
 }
@@ -609,6 +624,8 @@ pub struct FwView {
     pub fn_slots: u32,
     pub tap_key_used: u32,
     pub tap_layer_used: u32,
+    /// The draft reads tap-hold keys from the layer slots (type 8).
+    pub layer_tap_hold: bool,
     /// Index of the Fn key.
     pub fn_key: u8,
     pub suggested_name: String,
@@ -638,9 +655,16 @@ pub enum FwEditInput {
     KeyToStock {
         key: u8,
     },
+    SetLayerTapHold {
+        on: bool,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent flags the UI reads one by one"
+)]
 pub struct Snapshot {
     pub phase: Phase,
     pub lang: UiLang,
@@ -658,6 +682,9 @@ pub struct Snapshot {
     pub report: Option<ReportView>,
     /// What the connected firmware reports it changed (command 0x30); `None` when it has no info block.
     pub firmware: Option<FirmwareView>,
+    /// The layers hold tap-hold slots the firmware on the keyboard does not read yet: saving builds and flashes a
+    /// firmware that does (once), after writing the layers.
+    pub tap_hold_upgrade: bool,
     /// Firmware mode (draft, build, flash); `None` until the keyboard was read.
     pub fw: Option<FwView>,
     pub error: Option<ErrorView>,
@@ -797,6 +824,13 @@ pub enum Action {
     System {
         usage: u8,
     },
+    /// Tap sends `tap`; held, sends `hold` (a key or modifier) or, for `0xF0 + n`, turns on layer n; `term` in
+    /// 10 ms steps (0 = 200 ms).
+    TapHold {
+        tap: u8,
+        hold: u8,
+        term: u8,
+    },
     /// Four bytes typed in the Advanced tab, e.g. `"02 00 a4 00"`.
     Raw {
         hex: String,
@@ -826,6 +860,7 @@ impl Action {
             .to_slot(),
             Action::Consumer { usage } => SlotKind::Consumer { usage }.to_slot(),
             Action::System { usage } => SlotKind::System { usage }.to_slot(),
+            Action::TapHold { tap, hold, term } => SlotKind::TapHold { tap, hold, term }.to_slot(),
             Action::Raw { ref hex } => hex.parse::<Slot>().map_err(|e| e.to_string())?,
         })
     }

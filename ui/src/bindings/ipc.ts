@@ -46,9 +46,13 @@ cap_shift: string | null, long: string,
  */
 changed: boolean, 
 /**
- * The editor can produce this kind (types 0-4); others are shown and kept but not edited.
+ * The editor can produce this kind (types 0-4, 8); others are shown and kept but not edited.
  */
-editable: boolean, };
+editable: boolean, 
+/**
+ * For a tap-hold slot that turns on a layer while held: that layer, 0-3 (the key is bold there).
+ */
+hold_layer: number | null, };
 
 export type DeviceView = { path: string, name: string, vendor_id: number, product_id: number, version: number, model_id: string | null, };
 
@@ -134,7 +138,11 @@ export type FirmwareEditView = { index: number, key: string | null, legend: stri
  */
 code: string | null, };
 
-export type FirmwareView = { name: string, tap_holds: Array<TapHoldView>, fn_edits: Array<FirmwareEditView>, keymap_edits: Array<FirmwareEditView>, };
+export type FirmwareView = { name: string, tap_holds: Array<TapHoldView>, fn_edits: Array<FirmwareEditView>, keymap_edits: Array<FirmwareEditView>, 
+/**
+ * The firmware reads tap-hold keys from the layer slots (type 8): the Tap-hold tab of the layer page works.
+ */
+layer_tap_hold: boolean, };
 
 export type FwCodeView = { code: number, 
 /**
@@ -257,11 +265,15 @@ on_keyboard: string | null, on_keyboard_tag: number | null, keys: Array<FwKeyVie
  */
 changes: number, can_undo: boolean, can_redo: boolean, fn_slots_used: number, fn_slots: number, tap_key_used: number, tap_layer_used: number, 
 /**
+ * The draft reads tap-hold keys from the layer slots (type 8).
+ */
+layer_tap_hold: boolean, 
+/**
  * Index of the Fn key.
  */
 fn_key: number, suggested_name: string, build: FwBuildView | null, flash: FwFlashView | null, };
 
-export type FwEditInput = { "type": "set_fn", key: number, code: number | null, } | { "type": "set_default", key: number, code: number, } | { "type": "set_tap_hold", key: number, tap_hold: FwTapHoldView | null, } | { "type": "key_to_base", key: number, } | { "type": "key_to_stock", key: number, };
+export type FwEditInput = { "type": "set_fn", key: number, code: number | null, } | { "type": "set_default", key: number, code: number, } | { "type": "set_tap_hold", key: number, tap_hold: FwTapHoldView | null, } | { "type": "key_to_base", key: number, } | { "type": "key_to_stock", key: number, } | { "type": "set_layer_tap_hold", on: boolean, };
 
 export type Snapshot = { phase: Phase, lang: UiLang, devices: Array<DeviceView>, device: DeviceView | null, model_id: string | null, 
 /**
@@ -272,6 +284,11 @@ layers: Array<Array<SlotView>>, changes: Array<ChangeView>, can_undo: boolean, c
  * What the connected firmware reports it changed (command 0x30); `None` when it has no info block.
  */
 firmware: FirmwareView | null, 
+/**
+ * The layers hold tap-hold slots the firmware on the keyboard does not read yet: saving builds and flashes a
+ * firmware that does (once), after writing the layers.
+ */
+tap_hold_upgrade: boolean, 
 /**
  * Firmware mode (draft, build, flash); `None` until the keyboard was read.
  */
@@ -305,4 +322,4 @@ export type Catalog = { keys: Array<KeyUsageView>, consumer: Array<ConsumerUsage
  */
 fw_special: Array<FwCodeView>, fw_special_en: Array<FwCodeView>, };
 
-export type Action = { "type": "empty" } | { "type": "key", mods: number, usage: number, } | { "type": "mouse_click", buttons: number, } | { "type": "mouse_scroll", amount: number, } | { "type": "mouse_move", dx: number, dy: number, } | { "type": "consumer", usage: number, } | { "type": "system", usage: number, } | { "type": "raw", hex: string, };
+export type Action = { "type": "empty" } | { "type": "key", mods: number, usage: number, } | { "type": "mouse_click", buttons: number, } | { "type": "mouse_scroll", amount: number, } | { "type": "mouse_move", dx: number, dy: number, } | { "type": "consumer", usage: number, } | { "type": "system", usage: number, } | { "type": "tap_hold", tap: number, hold: number, term: number, } | { "type": "raw", hex: string, };

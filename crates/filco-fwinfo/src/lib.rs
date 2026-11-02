@@ -21,7 +21,8 @@
 //!
 //! Entry payloads: `1` tap-hold key hold (key, tap, hold, term_ms u16); `2` tap-hold layer hold
 //! (key, tap, layer 0-3, term_ms u16); `3` Fn layer (key, code, 0 = Fn function removed); `4` default keymap
-//! (key, code). An unknown type is skipped, so a newer build can add types without breaking this reader.
+//! (key, code); `5` layer tap-hold (slot type, 8): tap-hold keys are read from layer slots of that type, each
+//! layer its own. An unknown type is skipped, so a newer build can add types without breaking this reader.
 #![forbid(unsafe_code)]
 
 use serde::{Deserialize, Serialize};
@@ -41,6 +42,7 @@ const T_TAP_KEY: u8 = 1;
 const T_TAP_LAYER: u8 = 2;
 const T_FN: u8 = 3;
 const T_KEYMAP: u8 = 4;
+const T_LAYER_TAP: u8 = 5;
 
 /// A tap-hold key whose hold sends another key (for example CapsLock: tap Esc, hold LCtrl).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -87,6 +89,9 @@ pub struct Info {
     pub tap_layers: Vec<TapLayer>,
     pub fn_layer: Vec<FnEdit>,
     pub keymap: Vec<KeymapEdit>,
+    /// Slot type the firmware reads as a tap-hold key in each layer (8), when it has layer tap-hold.
+    #[serde(default)]
+    pub layer_tap_hold: Option<u8>,
 }
 
 /// Why a block could not be decoded into a full [`Info`].
@@ -134,6 +139,7 @@ pub fn parse(data: &[u8]) -> Result<Info, ReadError> {
         tap_layers: Vec::new(),
         fn_layer: Vec::new(),
         keymap: Vec::new(),
+        layer_tap_hold: None,
     };
 
     // Entries start after the fixed name field, and run until the end marker or `used`.
@@ -177,6 +183,7 @@ pub fn parse(data: &[u8]) -> Result<Info, ReadError> {
                     code: p[1],
                 });
             }
+            T_LAYER_TAP if n >= 1 => info.layer_tap_hold = Some(p[0]),
             _ => {} // unknown type or short payload: skip, as a forward-compatible reader must
         }
         pos += 2 + n;

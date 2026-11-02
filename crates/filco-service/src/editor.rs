@@ -70,6 +70,14 @@ pub fn check_slot(model: &ModelDescriptor, slot: Slot) -> Result<(), EditError> 
             }
             type_code::SYSTEM
         }
+        SlotKind::TapHold { tap, hold, .. } => {
+            if tap == 0 || hold == 0 {
+                return Err(EditError::Invalid(
+                    "a tap-hold key needs a tap key and a hold".into(),
+                ));
+            }
+            type_code::TAP_HOLD
+        }
         SlotKind::Macro { .. } => type_code::MACRO,
         SlotKind::Other { bytes } => bytes[0] & 0x0f,
     };
@@ -184,6 +192,21 @@ impl Editor {
         check_slot(model, slot)?;
         let edits: Vec<_> = layers.iter().map(|&l| (l, index, slot)).collect();
         self.apply(model, &edits)
+    }
+
+    /// Sets several `(layer, index, slot)` as one undo step; the first edit of a slot wins.
+    pub fn assign_many(
+        &mut self,
+        model: &ModelDescriptor,
+        edits: &[(usize, u8, Slot)],
+    ) -> Result<bool, EditError> {
+        for &(_, index, slot) in edits {
+            if model.key_by_index(index).is_none() {
+                return Err(EditError::NoKey(index));
+            }
+            check_slot(model, slot)?;
+        }
+        self.apply(model, edits)
     }
 
     /// Copies every slot of layer `from` onto layer `to` as one undo step.

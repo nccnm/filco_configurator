@@ -15,6 +15,7 @@
 pub mod config;
 pub mod hex;
 pub mod info;
+pub mod layertap;
 pub mod taphold;
 pub mod v72;
 
@@ -156,6 +157,9 @@ pub fn build(stock_hex: &str, config_toml: &str) -> Result<Build, Error> {
             .collect::<Result<Vec<_>, Error>>()?;
         taphold::apply(&mut fw, caps, &layers)?;
     }
+    if config.layer_tap_hold {
+        layertap::apply(&mut fw)?;
+    }
     let info = if config.info_block {
         let block = info::block(&info::BlockContent {
             name: config.name.clone(),
@@ -163,6 +167,7 @@ pub fn build(stock_hex: &str, config_toml: &str) -> Result<Build, Error> {
             tap_layers: config.tap_layers.clone(),
             fn_layer: config.fn_layer.clone(),
             keymap: config.keymap.clone(),
+            layer_tap_hold: config.layer_tap_hold,
         })?;
         info::apply(&mut fw, &block)?;
         Some(block)

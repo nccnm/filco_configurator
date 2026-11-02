@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use filco_core::model::{KnownDevices, Support, builtin};
-use filco_core::{LayerSet, ModelDescriptor, SlotChange, export};
+use filco_core::slot::type_code;
+use filco_core::{LayerSet, ModelDescriptor, Slot, SlotChange, export};
 use filco_protocol::{Phase as IoPhase, Progress, ProtocolError, TransportError};
 use filco_service::assist_config;
 use filco_service::backend::Backend;
@@ -84,6 +85,18 @@ impl std::fmt::Debug for App {
             .field("found", &self.found.len())
             .finish_non_exhaustive()
     }
+}
+
+/// Some key of the model has a tap-hold slot (type 8) in some layer.
+fn has_tap_hold_slot(m: &ModelDescriptor, layers: &LayerSet) -> bool {
+    let a = m.addressing();
+    (0..layers.len()).any(|l| {
+        m.layout.keys.iter().any(|k| {
+            layers
+                .slot(a, l, k.index)
+                .is_some_and(|s| s.kind().type_code() == type_code::TAP_HOLD)
+        })
+    })
 }
 
 fn read_error(e: &ProtocolError) -> ErrorView {
@@ -314,13 +327,53 @@ impl App {
         };
     }
 
+    /// Gives key `index` the action in `layers`. A tap-hold slot is accepted whatever the keyboard runs: saving
+    /// then updates the firmware (see [`Snapshot::tap_hold_upgrade`]). When the keyboard still runs tap-hold set in
+    /// the firmware, the first edit of a tap-hold (or of one of those keys) also turns those into slots of every
+    /// layer, in the same undo step, so nothing they did is lost when the new firmware takes over.
     pub fn assign(&mut self, layers: &[usize], index: u8, action: &Action) {
+        let older = self.firmware_tap_slots();
         self.edit(|m, ed| {
             let slot = action.to_slot().map_err(|e| ErrorView::new("edit_invalid", e))?;
-            ed.assign_layers(m, layers, index, slot)
+            let mut edits: Vec<(usize, u8, Slot)> = layers.iter().map(|&l| (l, index, slot)).collect();
+            let tap_hold = slot.kind().type_code() == type_code::TAP_HOLD;
+            if !older.is_empty()
+                && !has_tap_hold_slot(m, ed.working())
+                && (tap_hold || older.iter().any(|&(k, _)| k == index))
+            {
+                for &(k, s) in &older {
+                    for l in 0..ed.working().len() {
+                        if !(k == index && layers.contains(&l)) {
+                            edits.push((l, k, s));
+                        }
+                    }
+                }
+            }
+            ed.assign_many(m, &edits)
                 .map(|_| ())
                 .map_err(|e| ErrorView::new("edit_invalid", e))
         });
+    }
+
+    /// The tap-hold keys the firmware on the keyboard holds itself (an older build), as layer slots of type 8;
+    /// empty when the firmware reads tap-hold from the slots already, or has none.
+    fn firmware_tap_slots(&self) -> Vec<(u8, Slot)> {
+        let Some(info) = self.conn.as_ref().and_then(|c| c.info.as_ref()) else {
+            return Vec::new();
+        };
+        if info.layer_tap_hold.is_some() {
+            return Vec::new();
+        }
+        let term = |ms: u16| u8::try_from(ms.div_ceil(10)).unwrap_or(u8::MAX).max(1);
+        let key = info
+            .tap_key
+            .iter()
+            .map(|t| (t.key, Slot([type_code::TAP_HOLD, t.tap, t.hold, term(t.term_ms)])));
+        let layer = info.tap_layers.iter().map(|t| {
+            let hold = filco_core::slot::HOLD_LAYER + t.layer;
+            (t.key, Slot([type_code::TAP_HOLD, t.tap, hold, term(t.term_ms)]))
+        });
+        key.chain(layer).collect()
     }
 
     pub fn copy_layer(&mut self, from: usize, to: usize) {
@@ -731,10 +784,27 @@ impl App {
             plan,
             report,
             firmware: self.firmware_view(model),
+            tap_hold_upgrade: self.tap_hold_upgrade(),
             fw: self.fw_view(),
             error: self.error.clone(),
             simulated: self.simulated,
         }
+    }
+
+    /// Whether the firmware on the keyboard reads tap-hold keys from the layer slots.
+    fn layer_tap_hold(&self) -> bool {
+        self.conn
+            .as_ref()
+            .and_then(|c| c.info.as_ref())
+            .is_some_and(|i| i.layer_tap_hold == Some(type_code::TAP_HOLD))
+    }
+
+    /// The layers hold tap-hold slots the firmware on the keyboard does not read yet.
+    fn tap_hold_upgrade(&self) -> bool {
+        let (Some(m), Some(ed)) = (self.model(), self.conn.as_ref().and_then(|c| c.editor.as_ref())) else {
+            return false;
+        };
+        !self.layer_tap_hold() && has_tap_hold_slot(m, ed.working())
     }
 
     /// The connected firmware's info block as a view, or `None` when there is no connection, model or block.
@@ -856,6 +926,128 @@ mod tests {
                 .iter()
                 .any(|e| e.legend.as_deref() == Some("I") && e.code.is_none())
         );
+    }
+
+    fn app_with_info(block: &[u8; 512]) -> (App, tempfile::TempDir) {
+        let tmp = tempfile::tempdir().unwrap();
+        let sim = SimBackend::new(SimKeyboard::new(vec![Page::empty(); 4]).with_info_block(*block));
+        let paths = Paths {
+            backups: tmp.path().join("backups"),
+            state: tmp.path().to_owned(),
+            assist_config: Some(tmp.path().join("filco_assist_config.json")),
+            firmware: Some(repo_firmware()),
+        };
+        let mut app = App::new(Arc::new(sim), &paths, true);
+        app.refresh(&mut |_| {});
+        (app, tmp)
+    }
+
+    const ESC_CTRL: Action = Action::TapHold {
+        tap: 0x29,
+        hold: 0xE0,
+        term: 0,
+    };
+
+    #[test]
+    fn tap_hold_slots_on_stock_firmware_ask_for_the_update() {
+        let (mut app, _sim, _tmp) = rig();
+        app.refresh(&mut |_| {});
+        assert!(!app.snapshot().tap_hold_upgrade);
+        app.assign(&[0], 0x20, &ESC_CTRL);
+        let s = app.snapshot();
+        assert!(s.error.is_none(), "{:?}", s.error);
+        assert_eq!(s.changes.len(), 1);
+        assert!(
+            s.tap_hold_upgrade,
+            "saving must flash a firmware that reads the slot"
+        );
+        app.undo();
+        assert!(!app.snapshot().tap_hold_upgrade);
+    }
+
+    #[test]
+    fn firmware_tap_holds_move_into_the_slots_with_the_first_tap_hold() {
+        let (mut app, _tmp) = app_with_info(&info_block_of("HJKL_CapsSpace2_Info"));
+        let (caps, semi) = (4, 29);
+        let s = app.snapshot();
+        assert_eq!(s.firmware.as_ref().map(|f| f.tap_holds.len()), Some(3));
+        // A plain key elsewhere: nothing moves.
+        app.assign(&[0], 0x20, &key(0, 0x13));
+        assert_eq!(app.snapshot().changes.len(), 1);
+        app.undo();
+        app.assign(&[0], semi, &ESC_CTRL);
+        let s = app.snapshot();
+        assert!(s.error.is_none(), "{:?}", s.error);
+        assert!(s.tap_hold_upgrade);
+        let order: Vec<u8> = app.model().unwrap().layout.keys.iter().map(|k| k.index).collect();
+        let pos = |index: u8| order.iter().position(|&k| k == index).unwrap();
+        for l in 0..4 {
+            assert_eq!(
+                s.layers[l][pos(caps)].hex,
+                "08 29 e0 14",
+                "Caps in layer {}",
+                l + 1
+            );
+        }
+        let spaces: Vec<&str> = s.layers[0]
+            .iter()
+            .filter(|v| v.hold_layer.is_some())
+            .map(|v| v.hex.as_str())
+            .collect();
+        assert_eq!(
+            spaces,
+            ["08 2c f2 1e", "08 2c f3 1e"],
+            "both Space keys, layers 3 and 4"
+        );
+        assert_eq!(s.changes.len(), 1 + 3 * 4);
+        // One undo step takes it all back.
+        app.undo();
+        assert_eq!(app.snapshot().changes.len(), 0);
+        // Editing one of those keys moves them too; the edited slot keeps the user's value.
+        app.assign(&[1], caps, &key(0, 0x39));
+        let s = app.snapshot();
+        assert_eq!(s.layers[1][pos(caps)].hex, "02 00 39 00");
+        assert_eq!(s.layers[0][pos(caps)].hex, "08 29 e0 14");
+    }
+
+    #[test]
+    fn a_keyboard_with_layer_tap_hold_takes_tap_hold_slots_as_they_are() {
+        let block = filco_firmware::info::block(&filco_firmware::info::BlockContent {
+            name: "LayerTap".into(),
+            layer_tap_hold: true,
+            ..Default::default()
+        })
+        .unwrap();
+        let (mut app, _tmp) = app_with_info(&block.try_into().unwrap());
+        let s = app.snapshot();
+        assert!(s.firmware.as_ref().is_some_and(|f| f.layer_tap_hold));
+        assert!(s.fw.as_ref().is_some_and(|f| f.layer_tap_hold && f.changes == 0));
+        // The same key gets its own tap-hold in two layers.
+        app.assign(&[0], 0x20, &ESC_CTRL);
+        app.assign(
+            &[1],
+            0x20,
+            &Action::TapHold {
+                tap: 0x39,
+                hold: 0xF2,
+                term: 30,
+            },
+        );
+        let s = app.snapshot();
+        assert!(s.error.is_none(), "{:?}", s.error);
+        assert!(!s.tap_hold_upgrade);
+        let (l1, l2) = (&s.layers[0], &s.layers[1]);
+        let i = l1.iter().position(|v| v.changed).unwrap();
+        assert_eq!(
+            (l1[i].kind.as_str(), l1[i].hex.as_str()),
+            ("tap_hold", "08 29 e0 00")
+        );
+        assert_eq!(
+            (l1[i].short.as_str(), l1[i].cap_sub.as_deref()),
+            ("Esc", Some("Ctrl"))
+        );
+        assert_eq!((l2[i].hex.as_str(), l2[i].hold_layer), ("08 39 f2 1e", Some(2)));
+        assert_eq!(s.changes.len(), 2);
     }
 
     /// Edit the draft, build it for real, "flash" it with a simulated updater, and check after the keyboard is

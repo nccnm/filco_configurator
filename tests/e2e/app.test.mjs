@@ -367,6 +367,124 @@ describe("keyboard layer editor (simulated keyboard)", () => {
   });
 });
 
+describe("tap-hold per layer (keyboard runs a build with layer_tap_hold)", () => {
+  let app;
+  before(async () => {
+    app = await openApp();
+    await app.browser.execute(() => localStorage.setItem("lang", "en"));
+    await app.browser.refresh();
+    await waitState(app.browser, "ready");
+    await sim(app.browser, "info_layer_tap");
+    await sim(app.browser, "unplug");
+    await sim(app.browser, "replug");
+    await waitState(app.browser, "ready");
+  });
+  after(async () => app?.close());
+
+  const hex = async (browser) => (await byTest(browser, "slot-hex")).getText();
+
+  it("sets tap, hold and time on one key, and the key stays selected", async () => {
+    const { browser } = app;
+    await select(browser, 0, "Caps");
+    await click(browser, "tab-tap_hold");
+    assert.equal(await (await byTest(browser, "tap-hold-unsupported")).isExisting(), false);
+    await click(browser, "th-tap");
+    await click(browser, "usage-29"); // Esc; the grid then fills the hold
+    await click(browser, "usage-e0"); // LCtrl
+    await waitIdle(browser);
+    assert.equal(await hex(browser), "08 29 e0 14");
+    assert.equal(await attr(browser, '[data-testid="key-Caps"]', "aria-pressed"), "true");
+    assert.match(await attr(browser, '[data-testid="key-Caps"]', "class"), /taphold/);
+    assert.match(await (await byTest(browser, "slot-long")).getText(), /tap Escape, hold Left Control/);
+    const term = await byTest(browser, "th-term");
+    await term.setValue("300");
+    await browser.keys("Tab");
+    await waitIdle(browser);
+    assert.equal(await hex(browser), "08 29 e0 1e");
+    // Reopening the key opens the Tap-hold tab with its values.
+    await click(browser, "key-Q");
+    await click(browser, "key-Caps");
+    assert.equal(await attr(browser, '[data-testid="tab-tap_hold"]', "aria-selected"), "true");
+    assert.equal(await (await byTest(browser, "th-term")).getValue(), "300");
+  });
+
+  it("the same key holds into a layer on another layer; that layer shows it bold", async () => {
+    const { browser } = app;
+    await select(browser, 1, "Caps");
+    await click(browser, "tab-tap_hold");
+    assert.equal(await (await byTest(browser, "th-layer-1")).isEnabled(), false); // the layer shown
+    await click(browser, "th-tap");
+    await click(browser, "usage-39"); // Caps Lock
+    await click(browser, "th-layer-2");
+    await waitIdle(browser);
+    assert.equal(await hex(browser), "08 39 f2 14");
+    assert.doesNotMatch(await attr(browser, '[data-testid="key-Caps"]', "class"), /holds-here/);
+    await click(browser, "layer-2");
+    assert.match(await attr(browser, '[data-testid="key-Caps"]', "class"), /holds-here/);
+    // Layer 1 still holds its own tap-hold on the key.
+    assert.equal(await select(browser, 0, "Caps"), "08 29 e0 1e");
+    assert.match(await (await byTest(browser, "save")).getText(), /Save 2 changes/);
+  });
+
+  it("the Firmware page shows tap-hold per layer as on", async () => {
+    const { browser } = app;
+    await click(browser, "fw-tab");
+    await click(browser, "fwkey-Caps");
+    assert.match(await (await byTest(browser, "fw-sec-taphold")).getText(), /per layer/);
+    await click(browser, "fw-sec-taphold");
+    assert.equal(await attr(browser, '[data-testid="fw-lt-on"]', "aria-pressed"), "true");
+    await click(browser, "layer-0");
+    await click(browser, "revert");
+    await waitIdle(browser);
+  });
+});
+
+describe("tap-hold on stock firmware: saving updates the firmware too", () => {
+  let app;
+  before(async () => {
+    app = await openApp();
+    await app.browser.execute(() => localStorage.setItem("lang", "en"));
+    await app.browser.refresh();
+    await waitState(app.browser, "ready");
+  });
+  after(async () => app?.close());
+
+  it("sets a tap-hold, writes the layers, opens the updater and checks the keyboard after", async () => {
+    const { browser } = app;
+    await select(browser, 0, "Caps");
+    await click(browser, "tab-tap_hold");
+    assert.ok(await (await byTest(browser, "tap-hold-upgrade")).isDisplayed());
+    await click(browser, "th-tap");
+    await click(browser, "usage-29");
+    await click(browser, "usage-e0");
+    await waitIdle(browser);
+    assert.equal(await (await byTest(browser, "slot-hex")).getText(), "08 29 e0 14");
+    // Save: the firmware is built and tested first, so the diff can name its checksum.
+    await click(browser, "save");
+    const dlg = await byTest(browser, "diff-dialog");
+    await dlg.waitForDisplayed({ timeout: 90000 });
+    await waitIdle(browser);
+    assert.match(await (await byTest(browser, "diff-upgrade")).getText(), /CheckSum : 0x[0-9A-F]{4}/);
+    await click(browser, "diff-write");
+    // The layers are written, then the updater is started (simulated: it flashes and unplugs the keyboard).
+    await (await byTest(browser, "fw-flash-waiting")).waitForDisplayed({ timeout: 20000 });
+    await waitIdle(browser);
+    // Any refresh sees the keyboard gone (Windows reports it; here a simulator control refreshes), then back.
+    await sim(browser, "assist_off");
+    await sim(browser, "replug");
+    await (await byTest(browser, "fw-flash-result")).waitForDisplayed({ timeout: 15000 });
+    assert.match(await (await byTest(browser, "fw-flash-result")).getText(), /CheckSum 0x/);
+    await click(browser, "fw-flash-close");
+    await waitIdle(browser);
+    // The keyboard now runs tap-hold per layer and holds the slot: nothing left to save.
+    assert.match(await (await byTest(browser, "save")).getText(), /No changes/);
+    await click(browser, "key-Caps");
+    assert.equal(await (await byTest(browser, "slot-hex")).getText(), "08 29 e0 14");
+    await click(browser, "tab-tap_hold");
+    assert.equal(await (await byTest(browser, "tap-hold-upgrade")).isExisting(), false);
+  });
+});
+
 describe("firmware mode (simulated keyboard, real build pipeline)", () => {
   let app;
   before(async () => {
@@ -383,14 +501,15 @@ describe("firmware mode (simulated keyboard, real build pipeline)", () => {
   const text = async (browser, id) => (await byTest(browser, id)).getText();
   const attr = async (browser, id, name) => (await byTest(browser, id)).getAttribute(name);
 
-  it("the next key after a mapping passes over tap-hold keys", async () => {
+  it("a tap-hold key of the firmware can be mapped like any other", async () => {
     const { browser } = app;
     await click(browser, "layer-0");
     await click(browser, "key-\\\\"); // "\\", the last key of its row; Caps below it is a tap-hold key
     await click(browser, "usage-68");
     await waitIdle(browser);
-    await waitSelected(browser, "A");
+    await waitSelected(browser, "Caps");
     assert.match(await attr(browser, "key-Caps", "class"), /taphold/);
+    assert.ok(await (await byTest(browser, "taphold-note")).isDisplayed());
     await click(browser, "revert");
     await waitIdle(browser);
   });

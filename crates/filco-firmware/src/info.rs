@@ -24,6 +24,8 @@ const T_TAP_KEY: u8 = 1;
 const T_TAP_LAYER: u8 = 2;
 const T_FN: u8 = 3;
 const T_KEYMAP: u8 = 4;
+/// Layer tap-hold: the firmware reads tap-hold keys from layer slots of the payload's type (8).
+const T_LAYER_TAP: u8 = 5;
 
 const KNOWN_CALL: u32 = 0xA50A;
 const KNOWN_FN: u32 = 0xA3AA;
@@ -94,6 +96,8 @@ pub struct BlockContent {
     /// Fn + key code; `None` = Fn function removed.
     pub fn_layer: Vec<(u8, Option<u8>)>,
     pub keymap: Vec<(u8, u8)>,
+    /// Tap-hold set per layer in the layer slots (`layertap.rs`).
+    pub layer_tap_hold: bool,
 }
 
 /// Encodes the block (entries sorted by key within each type, as `fwinfo.block`).
@@ -106,6 +110,9 @@ pub fn block(c: &BlockContent) -> Result<Vec<u8>, Error> {
     for &(k, tap, layer, term) in &c.tap_layers {
         entries.extend_from_slice(&[T_TAP_LAYER, 5, k, tap, layer]);
         entries.extend_from_slice(&term.to_le_bytes());
+    }
+    if c.layer_tap_hold {
+        entries.extend_from_slice(&[T_LAYER_TAP, 1, crate::layertap::SLOT_TYPE]);
     }
     let mut fl = c.fn_layer.clone();
     fl.sort_by_key(|e| e.0);

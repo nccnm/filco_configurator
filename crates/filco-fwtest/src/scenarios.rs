@@ -329,6 +329,9 @@ pub fn run_all(b: &Build, out: &mut Out) -> Result<bool, Stop> {
     if cfg.tap_layers.len() == 2 {
         and(&all, test_two_layer_holds(&cx, out)?);
     }
+    if cfg.layer_tap_hold {
+        and(&all, test_layer_tap(&cx, out)?);
+    }
     if b.info.is_some() {
         and(&all, test_info(&cx, out)?);
     }
@@ -751,6 +754,288 @@ fn test_two_layer_holds(cx: &Ctx<'_>, out: &mut Out) -> Result<bool, Stop> {
     Ok(all.get())
 }
 
+/// Tap-hold set in layer slots (`layertap.rs`): the test slots below, then timed scenarios, then random rolls
+/// that must leave no key, modifier or layer behind.
+#[allow(clippy::too_many_lines, clippy::many_single_char_names)]
+fn test_layer_tap(cx: &Ctx<'_>, out: &mut Out) -> Result<bool, Stop> {
+    use filco_firmware::layertap::{HOLD_LAYER, SLOT_TYPE};
+    let k = |n: &str| cx.key(n);
+    let (caps, semi, space, c, h, j) = (
+        k("CapsLock"),
+        k("Semicolon"),
+        k("Space#77"),
+        k("C"),
+        k("H"),
+        k("J"),
+    );
+    let (fnk, lalt, one, two) = (cx.b.fn_position, k("LAlt"), k("1"), k("2"));
+    let (esc, lctrl, rwin, lshift, sp) = (0x29, LCTRL, 0xE7, 0xE1, 0x2C);
+    let th = |tap: u8, hold: u8, term10: u8| [SLOT_TYPE, tap, hold, term10];
+    let slots = [
+        ((0, caps), th(esc, lctrl, 20)),
+        ((0, semi), th(0x33, rwin, 0)),
+        ((0, space), th(sp, HOLD_LAYER | 2, 30)),
+        ((1, j), th(0x0D, lshift, 15)),
+        ((2, h), [2, 0, LEFT, 0]),
+    ];
+    out.push(
+        "Tap-hold in layer slots (type 8): layer 1 CapsLock = Esc / LCtrl 200 ms, Semicolon = ; / RWin (term 0 = \
+         200 ms), Space#77 = Space / layer 3 300 ms; layer 2 J = J / LShift 150 ms; layer 3 H = Left:"
+            .to_string(),
+    );
+    let mut e = V72::new(&cx.b.image, &slots)?;
+    let mut stock = V72::new(&cx.b.image, &[])?;
+    let fn_caps = first_down(&stock.chord(&[fnk], caps)?).unwrap_or(0);
+    let fn_semi = first_down(&stock.chord(&[fnk], semi)?).unwrap_or(0);
+    let plain_semi = first_down(&stock.chord(&[], semi)?).unwrap_or(0);
+    let plain_caps = first_down(&stock.chord(&[], caps)?).unwrap_or(0);
+    let all = Cell::new(true);
+    let (d, u) = (DOWN, UP);
+    let n = |k: u8| cx.n(k).to_string();
+    let run = |e: &mut V72, out: &mut Out, label: String, a: &[(Act, u8, u32)], w: &[(u8, u8)]| {
+        let good = timed(e, out, &label, a, w, None)?;
+        let clean = clean_after(e, out);
+        and(&all, good && clean);
+        Ok::<(), Stop>(())
+    };
+    run(
+        &mut e,
+        out,
+        format!("{} tapped 40 ms", n(caps)),
+        &[(D, caps, 40), (U, caps, 60)],
+        &[(esc, d), (esc, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} held 180 ms", n(caps)),
+        &[(D, caps, 180), (U, caps, 60)],
+        &[(esc, d), (esc, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} held 230 ms alone", n(caps)),
+        &[(D, caps, 230), (U, caps, 60)],
+        &[(lctrl, d), (lctrl, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} + {} within 40 ms", n(caps), n(c)),
+        &[(D, caps, 40), (D, c, 40), (U, c, 40), (U, caps, 60)],
+        &[(lctrl, d), (0x06, d), (0x06, u), (lctrl, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} + {} (Fn layer, as without the slot)", n(fnk), n(caps)),
+        &[(D, fnk, 40), (D, caps, 40), (U, caps, 40), (U, fnk, 60)],
+        &[(fn_caps, d), (fn_caps, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} + {} (Fn layer, as without the slot)", n(fnk), n(semi)),
+        &[(D, fnk, 40), (D, semi, 40), (U, semi, 40), (U, fnk, 60)],
+        &[(fn_semi, d), (fn_semi, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} + {}, {} released first", n(fnk), n(semi), n(fnk)),
+        &[(D, fnk, 40), (D, semi, 40), (U, fnk, 40), (U, semi, 60)],
+        &[(fn_semi, d), (fn_semi, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} tapped 40 ms", n(semi)),
+        &[(D, semi, 40), (U, semi, 60)],
+        &[(0x33, d), (0x33, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} held 230 ms alone", n(semi)),
+        &[(D, semi, 230), (U, semi, 60)],
+        &[(rwin, d), (rwin, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!(
+            "{} held, {} tapped (second key hold: plain key)",
+            n(caps),
+            n(semi)
+        ),
+        &[(D, caps, 230), (D, semi, 40), (U, semi, 40), (U, caps, 60)],
+        &[(lctrl, d), (plain_semi, d), (plain_semi, u), (lctrl, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} tapped 40 ms", n(space)),
+        &[(D, space, 40), (U, space, 60)],
+        &[(sp, d), (sp, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} held 330 ms, then {} (slot Left in layer 3)", n(space), n(h)),
+        &[(D, space, 330), (D, h, 40), (U, h, 40), (U, space, 60)],
+        &[(LEFT, d), (LEFT, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} + {} tapped, all within 300 ms", n(space), n(h)),
+        &[(D, space, 40), (D, h, 40), (U, h, 40), (U, space, 60)],
+        &[(sp, d), (0x0B, d), (0x0B, u), (sp, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} held 330 ms, {} (no slot in layer 3)", n(space), n(caps)),
+        &[(D, space, 330), (D, caps, 40), (U, caps, 40), (U, space, 60)],
+        &[(plain_caps, d), (plain_caps, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!("{} held, {} tapped", n(caps), n(space)),
+        &[(D, caps, 230), (D, space, 40), (U, space, 40), (U, caps, 60)],
+        &[(lctrl, d), (sp, d), (sp, u), (lctrl, u)],
+    )?;
+    run(
+        &mut e,
+        out,
+        format!(
+            "{} down, {} held 330 ms, {} (layer 3 slot)",
+            n(caps),
+            n(space),
+            n(h)
+        ),
+        &[
+            (D, caps, 40),
+            (D, space, 330),
+            (D, h, 40),
+            (U, h, 40),
+            (U, space, 40),
+            (U, caps, 60),
+        ],
+        &[(lctrl, d), (LEFT, d), (LEFT, u), (lctrl, u)],
+    )?;
+    // Layer 2: its own tap-hold keys only (the layer stays 2 until Fn + LAlt + 1 below).
+    let run2 = |e: &mut V72, out: &mut Out, label: String, a: &[(Act, u8, u32)], w: &[(u8, u8)]| {
+        let good = timed(e, out, &label, a, w, None)?;
+        and(&all, good && e.layer() == 1 && e.ram_u8(MODIFIERS) == 0);
+        Ok::<(), Stop>(())
+    };
+    e.chord(&[fnk, lalt], two)?;
+    let l2 = e.layer() == 1;
+    and(&all, l2);
+    out.push(format!(
+        "  {:44} {:34} {}",
+        "Fn + LAlt + 2",
+        format!("layer {}", e.layer() + 1),
+        ok(l2)
+    ));
+    run2(
+        &mut e,
+        out,
+        format!("layer 2: {} tapped (no slot here)", n(caps)),
+        &[(D, caps, 40), (U, caps, 60)],
+        &[(plain_caps, d), (plain_caps, u)],
+    )?;
+    run2(
+        &mut e,
+        out,
+        format!("layer 2: {} tapped 40 ms", n(j)),
+        &[(D, j, 40), (U, j, 60)],
+        &[(0x0D, d), (0x0D, u)],
+    )?;
+    e.env.calls.clear();
+    e.press(j, true);
+    e.idle(180)?;
+    let held = e.ram_u8(MODIFIERS);
+    e.press(j, false);
+    e.idle(60)?;
+    let got: Vec<(u8, u8)> = e
+        .env
+        .calls
+        .iter()
+        .copied()
+        .filter(|&(c, _)| c != FN_CODE)
+        .collect();
+    let good = got == [(lshift, d), (lshift, u)] && held & 2 == 2 && e.layer() == 1;
+    and(&all, good);
+    out.push(format!(
+        "  {:44} {:34} {}",
+        format!("layer 2: {} held 180 ms", n(j)),
+        fmt_events(&got),
+        ok(good)
+    ));
+    e.chord(&[fnk, lalt], one)?;
+    let l1 = e.layer() == 0;
+    and(&all, l1);
+    out.push(format!(
+        "  {:44} {:34} {}",
+        "Fn + LAlt + 1",
+        format!("layer {}", e.layer() + 1),
+        ok(l1)
+    ));
+
+    // Random rolls over the tap-hold keys and a few others: nothing may stay down.
+    let keys: [u8; 7] = [caps, semi, space, c, h, j, fnk];
+    let mut seed: u32 = 0x1234_5678;
+    let mut rnd = |m: u32| {
+        seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12345);
+        (seed >> 16) % m
+    };
+    let mut bad = 0;
+    let rolls = 200;
+    for _ in 0..rolls {
+        e.env.calls.clear();
+        let mut down: Vec<u8> = Vec::new();
+        for _ in 0..(2 + rnd(5)) {
+            let key = keys[rnd(7) as usize];
+            if down.contains(&key) {
+                e.press(key, false);
+                down.retain(|&x| x != key);
+            } else {
+                e.press(key, true);
+                down.push(key);
+            }
+            e.idle(1 + rnd(400))?;
+        }
+        for key in down {
+            e.press(key, false);
+            e.idle(1 + rnd(60))?;
+        }
+        e.idle(400)?;
+        let mut balance = std::collections::BTreeMap::<u8, i32>::new();
+        for &(code, ev) in &e.env.calls {
+            *balance.entry(code).or_default() += if ev == DOWN { 1 } else { -1 };
+        }
+        let left_on = balance.values().any(|&v| v != 0);
+        if left_on || e.layer() != 0 || e.ram_u8(MODIFIERS) != 0 {
+            bad += 1;
+            if bad <= 3 {
+                out.push(format!("    stuck after: {}", fmt_events(&e.env.calls)));
+            }
+        }
+    }
+    and(&all, bad == 0);
+    out.push(format!(
+        "  {:44} {:34} {}",
+        format!("{rolls} random rolls, all keys up"),
+        format!("{bad} left a key, modifier or layer on"),
+        ok(bad == 0)
+    ));
+    Ok(all.get())
+}
+
 fn with_pages(img: &[u8], pages: &[Vec<u8>; 4]) -> Vec<u8> {
     let mut b = img.to_vec();
     for (layer, page) in pages.iter().enumerate() {
@@ -851,6 +1136,7 @@ fn expected_info(cx: &Ctx<'_>) -> filco_firmware::info::BlockContent {
         tap_layers: c.tap_layers.clone(),
         fn_layer: c.fn_layer.clone(),
         keymap: c.keymap.clone(),
+        layer_tap_hold: c.layer_tap_hold,
     }
 }
 
@@ -871,6 +1157,7 @@ fn info_matches(got: &filco_fwinfo::Info, want: &filco_firmware::info::BlockCont
             == want.tap_layers
         && got_fl == fl
         && got_km == km
+        && got.layer_tap_hold == want.layer_tap_hold.then_some(filco_firmware::layertap::SLOT_TYPE)
 }
 
 fn test_stack(stock: &[u8], new: &[u8], out: &mut Out) -> bool {

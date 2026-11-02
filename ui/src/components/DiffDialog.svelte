@@ -10,11 +10,13 @@
     model: ModelView;
     writing: boolean;
     progress: ProgressView | null;
+    /** Checksum of the firmware flashed after the write, when the layers hold tap-hold the keyboard cannot run yet. */
+    upgradeTag?: number | null;
     t: (key: Key, vars?: Record<string, string | number>) => string;
     oncancel: () => void;
     onwrite: () => void;
   }
-  let { plan, model, writing, progress, t, oncancel, onwrite }: Props = $props();
+  let { plan, model, writing, progress, upgradeTag = null, t, oncancel, onwrite }: Props = $props();
 
   let cancelButton: HTMLButtonElement | undefined = $state();
   // The safe choice has the focus: Enter never writes by accident.
@@ -40,6 +42,11 @@
   <p class="small">{t("diff_intro")} <Path path={plan.backup} /></p>
   {#if plan.experimental}
     <p class="banner warn small">{t("experimental")}</p>
+  {/if}
+  {#if upgradeTag !== null}
+    <p class="banner info small" data-testid="diff-upgrade">
+      {t("diff_upgrade", { tag: upgradeTag.toString(16).toUpperCase().padStart(4, "0") })}
+    </p>
   {/if}
   {#if linkedText}
     <p class="banner warn small" data-testid="linked-warning">{linkedText}</p>
@@ -102,6 +109,10 @@
     background: var(--warn-bg);
     color: var(--ink);
     border-left: 3px solid var(--warn);
+  }
+  .banner.info {
+    background: color-mix(in srgb, var(--acc) 9%, var(--paper));
+    border-left: 3px solid var(--acc);
   }
   .table-wrap {
     max-height: 46vh;

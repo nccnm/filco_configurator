@@ -105,6 +105,7 @@ pub fn config_from_info(info: &filco_fwinfo::Info) -> Config {
             .iter()
             .map(|t| (t.key, t.tap, t.layer, t.term_ms))
             .collect(),
+        layer_tap_hold: info.layer_tap_hold.is_some(),
     }
 }
 
@@ -148,6 +149,9 @@ pub enum FwEdit {
     KeyToStock { key: u8 },
     /// Build name (1-32 letters, digits, `_` or `-`).
     SetName(String),
+    /// Tap-hold keys set per layer in the layer slots (type 8) instead of the global ones of the draft; turning
+    /// it on drops the global tap-hold keys, which it replaces.
+    SetLayerTapHold(bool),
 }
 
 fn tap_hold_of(cfg: &Config, k: u8) -> Option<TapHold> {
@@ -251,6 +255,13 @@ fn edited(cfg: &Config, base: &Config, stock: &Stock, edit: &FwEdit) -> Config {
         FwEdit::KeyToBase { key } => copy_key(&mut c, base, key),
         FwEdit::KeyToStock { key } => copy_key(&mut c, &stock_config(""), key),
         FwEdit::SetName(ref n) => c.name.clone_from(n),
+        FwEdit::SetLayerTapHold(on) => {
+            c.layer_tap_hold = on;
+            if on {
+                c.tap_key = None;
+                c.tap_layers.clear();
+            }
+        }
     }
     c
 }
@@ -273,7 +284,8 @@ pub struct FwKey {
     /// Why Fn + key cannot be edited: `layout_specific` (Fn function in one bitmap variant only: W, R, X, C),
     /// `fn_key`, `tap_hold`.
     pub fn_locked: Option<&'static str>,
-    /// Why the key cannot be tap-hold: `has_fn` (remove its Fn function first), `fn_key`.
+    /// Why the key cannot be a global tap-hold key: `layer_tap` (tap-hold is set per layer on the layer page),
+    /// `has_fn` (remove its Fn function first), `fn_key`.
     pub tap_hold_locked: Option<&'static str>,
 }
 
@@ -456,7 +468,9 @@ impl FwDraft {
             } else {
                 None
             },
-            tap_hold_locked: if is_fn_key {
+            tap_hold_locked: if self.working.layer_tap_hold {
+                Some("layer_tap")
+            } else if is_fn_key {
                 Some("fn_key")
             } else if capable != Some(false) {
                 Some("has_fn")
@@ -481,6 +495,11 @@ impl FwDraft {
         (0..128u8)
             .filter(|&k| self.stock_t.fw.names.contains_key(&k) && self.key(k, p).changed())
             .collect()
+    }
+
+    /// Layer tap-hold in the draft and on the keyboard.
+    pub fn layer_tap_hold(&self) -> (bool, bool) {
+        (self.working.layer_tap_hold, self.base.layer_tap_hold)
     }
 
     /// Whether anything differs from the keyboard, the name included.
@@ -825,6 +844,37 @@ mod tests {
         d.apply(&s, &FwEdit::KeyToStock { key: idx(&s, "H") }).unwrap();
         assert_eq!(d.key(idx(&s, "H"), p).fn_code, None);
         assert!(d.apply(&s, &FwEdit::SetName("bad name".into())).is_err());
+    }
+
+    #[test]
+    fn layer_tap_hold_replaces_the_firmware_tap_holds() {
+        let s = stock();
+        let mut d = FwDraft::new(&s, config_from_info(&fixture_info("HJKL_CapsSpace2_Info"))).unwrap();
+        let p = d.fn_position();
+        let caps = idx(&s, "CapsLock");
+        d.apply(&s, &FwEdit::SetLayerTapHold(true)).unwrap();
+        assert_eq!(d.layer_tap_hold(), (true, false));
+        assert!(d.working().tap_key.is_none() && d.working().tap_layers.is_empty());
+        let k = d.key(caps, p);
+        assert_eq!((k.tap_hold, k.tap_hold_locked), (None, Some("layer_tap")));
+        let older = FwEdit::SetTapHold {
+            key: caps,
+            tap_hold: Some(TapHold {
+                tap: 0x29,
+                hold: Hold::Key(0xE0),
+                term_ms: 200,
+            }),
+        };
+        assert!(
+            d.apply(&s, &older).is_err(),
+            "no firmware tap-hold next to layer tap-hold"
+        );
+        d.undo(&s);
+        assert_eq!(d.layer_tap_hold(), (false, false));
+        assert!(
+            d.key(caps, p).tap_hold.is_some(),
+            "undo brings the firmware tap-hold back"
+        );
     }
 
     #[test]

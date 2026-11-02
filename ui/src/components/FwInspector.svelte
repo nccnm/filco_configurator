@@ -183,9 +183,11 @@
         {#each [["taphold", "fw_sec_taphold"], ["fn", "fw_sec_fn"], ["default", "fw_sec_default"]] as const as [id, label] (id)}
           {@const value =
             id === "taphold"
-              ? th
-                ? `${legendOf(th.tap)} / ${th.hold.type === "layer" ? `L${th.hold.layer + 1}` : legendOf(th.hold.code)}`
-                : t("fw_none")
+              ? fw.layer_tap_hold
+                ? t("fw_lt_short")
+                : th
+                  ? `${legendOf(th.tap)} / ${th.hold.type === "layer" ? `L${th.hold.layer + 1}` : legendOf(th.hold.code)}`
+                  : t("fw_none")
               : id === "fn"
                 ? codeText(key.fn_code)
                 : codeText(key.default)}
@@ -202,7 +204,23 @@
 
       <div class="panel" role="tabpanel" bind:this={panel}>
         {#if section === "taphold"}
-          {#if lockedTh && !th}
+          <div class="row">
+            <span class="label wide">{t("fw_lt_title")}</span>
+            <span class="seg">
+              {#each [[false, "fw_lt_off"], [true, "fw_lt_on"]] as const as [on, label] (label)}
+                <button
+                  aria-pressed={fw.layer_tap_hold === on}
+                  {disabled}
+                  onclick={() => fw.layer_tap_hold !== on && onedit({ type: "set_layer_tap_hold", on })}
+                  data-testid={`fw-lt-${on ? "on" : "off"}`}>{t(label)}</button
+                >
+              {/each}
+            </span>
+            <span class="hint small">{t("fw_lt_note")}</span>
+          </div>
+          {#if lockedTh === "layer_tap"}
+            <!-- The switch above says where tap-hold is set now. -->
+          {:else if lockedTh && !th}
             <p class="note warn small">{t(`fw_th_locked_${lockedTh}` as Key)}</p>
           {:else}
             <div class="row">
@@ -436,6 +454,10 @@
     width: 84px;
     font: 500 13.5px var(--font-key);
     opacity: 0.75;
+  }
+  .label.wide {
+    width: auto;
+    white-space: nowrap;
   }
   .label.inline {
     width: auto;

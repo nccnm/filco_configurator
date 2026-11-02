@@ -1,7 +1,9 @@
 //! The 4-byte key slot `[b0, b1, b2, b3]` of a layer page.
 //!
 //! The firmware dispatches on `b0 & 0x0f` (jump table at 0x76a0 in V60): 0 and 8-15 use the default keymap,
-//! 1 mouse, 2 keystroke, 3 consumer (media), 4 system control, 5-7 other handlers (6 = macro).
+//! 1 mouse, 2 keystroke, 3 consumer (media), 4 system control, 5-7 other handlers (6 = macro). Type 8 is a
+//! tap-hold key for firmware built with layer tap-hold (`filco-firmware` `layertap.rs`); stock firmware reads it
+//! as the default keymap.
 //!
 //! [`Slot`] always keeps the exact four bytes. [`SlotKind`] is a view of them: [`Slot::kind`] maps every
 //! possible byte pattern to exactly one kind, and [`SlotKind::to_slot`] maps it back to the same bytes, so
@@ -21,7 +23,13 @@ pub mod type_code {
     pub const CONSUMER: u8 = 3;
     pub const SYSTEM: u8 = 4;
     pub const MACRO: u8 = 6;
+    pub const TAP_HOLD: u8 = 8;
 }
+
+/// `hold` values of a tap-hold slot from this one to `+ 3` turn on layer `hold - HOLD_LAYER` while held.
+pub const HOLD_LAYER: u8 = 0xF0;
+/// Term of a tap-hold slot whose term byte is 0, in 10 ms steps (200 ms).
+pub const DEFAULT_TERM: u8 = 20;
 
 /// Mouse sub-functions in `b1` of a type-1 slot (firmware 0x90aa).
 pub mod mouse_code {
@@ -78,6 +86,9 @@ impl Slot {
             },
             (type_code::SYSTEM, usage, 0, 0) => SlotKind::System { usage },
             (type_code::MACRO, index, a, b) => SlotKind::Macro { index, extra: [a, b] },
+            (type_code::TAP_HOLD, tap, hold, term) if hold <= HOLD_LAYER + 3 => {
+                SlotKind::TapHold { tap, hold, term }
+            }
             _ => SlotKind::Other { bytes: self.0 },
         }
     }
@@ -195,8 +206,15 @@ pub enum SlotKind {
         index: u8,
         extra: [u8; 2],
     },
-    /// Any other pattern, kept byte for byte: types 5, 7, 8-15, a set high nibble in `b0`, or a non-zero byte
-    /// where the known layouts have zero.
+    /// `08 tap hold term`: tap sends `tap`; held, sends `hold` (a key or modifier) or, for `F0`-`F3`, turns on
+    /// layer 0-3; decided after `term` x 10 ms (0 = 200 ms). Needs firmware with layer tap-hold.
+    TapHold {
+        tap: u8,
+        hold: u8,
+        term: u8,
+    },
+    /// Any other pattern, kept byte for byte: types 5, 7, 9-15, a set high nibble in `b0`, a type-8 hold beyond
+    /// layer 3, or a non-zero byte where the known layouts have zero.
     Other {
         bytes: [u8; 4],
     },
@@ -228,8 +246,27 @@ impl SlotKind {
             }
             SlotKind::System { usage } => [type_code::SYSTEM, usage, 0, 0],
             SlotKind::Macro { index, extra: [a, b] } => [type_code::MACRO, index, a, b],
+            SlotKind::TapHold { tap, hold, term } => [type_code::TAP_HOLD, tap, hold, term],
             SlotKind::Other { bytes } => bytes,
         })
+    }
+
+    /// For a tap-hold slot: the layer (0-3) holding turns on, `None` when holding sends a key.
+    pub fn hold_layer(self) -> Option<u8> {
+        match self {
+            SlotKind::TapHold { hold, .. } if hold >= HOLD_LAYER => Some(hold - HOLD_LAYER),
+            _ => None,
+        }
+    }
+
+    /// For a tap-hold slot: the decision time in ms.
+    pub fn term_ms(self) -> Option<u16> {
+        match self {
+            SlotKind::TapHold { term, .. } => {
+                Some(u16::from(if term == 0 { DEFAULT_TERM } else { term }) * 10)
+            }
+            _ => None,
+        }
     }
 
     /// The firmware type code the bytes of this kind carry.
@@ -317,12 +354,30 @@ mod tests {
             "12 00 04 00",
             "02 00 04 01",
             "05 00 00 00",
-            "08 01 02 03",
+            "08 01 f4 03",
+            "09 01 02 03",
             "04 81 01 00",
         ] {
             let slot = s(text);
             assert_eq!(slot.kind(), SlotKind::Other { bytes: slot.bytes() }, "{text}");
         }
+    }
+
+    #[test]
+    fn tap_hold_slots() {
+        let k = s("08 29 e0 14").kind();
+        assert_eq!(
+            k,
+            SlotKind::TapHold {
+                tap: 0x29,
+                hold: 0xe0,
+                term: 20
+            }
+        );
+        assert_eq!((k.hold_layer(), k.term_ms()), (None, Some(200)));
+        let l = s("08 2c f3 00").kind();
+        assert_eq!((l.hold_layer(), l.term_ms()), (Some(3), Some(200)));
+        assert_eq!(l.to_slot(), s("08 2c f3 00"));
     }
 
     #[test]

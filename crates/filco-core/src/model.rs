@@ -17,12 +17,13 @@ use crate::slot::type_code;
 pub const SCHEMA_VERSION: u32 = 1;
 
 /// Slot type codes the editor knows how to edit.
-pub const EDITABLE_TYPES: [u8; 5] = [
+pub const EDITABLE_TYPES: [u8; 6] = [
     type_code::EMPTY,
     type_code::MOUSE,
     type_code::KEY,
     type_code::CONSUMER,
     type_code::SYSTEM,
+    type_code::TAP_HOLD,
 ];
 
 /// A 16-bit number written as `"0x2EFD"` in model files.

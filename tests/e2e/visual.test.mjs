@@ -148,6 +148,47 @@ describe("visual baselines", () => {
   });
 });
 
+describe("visual baselines: tap-hold per layer", () => {
+  let app;
+  before(async () => {
+    app = await openApp();
+    await vietnamese(app.browser);
+    await waitState(app.browser, "ready");
+    await sim(app.browser, "info_layer_tap");
+    await sim(app.browser, "unplug");
+    await sim(app.browser, "replug");
+    await waitState(app.browser, "ready");
+  });
+  after(async () => app?.close());
+
+  it("the Tap-hold tab, and the key on the layer it holds into", async () => {
+    const { browser } = app;
+    await setTheme(browser, "light");
+    await click(browser, "layer-0");
+    await click(browser, "key-Caps");
+    await click(browser, "tab-tap_hold");
+    await click(browser, "th-tap");
+    await click(browser, "usage-29");
+    await click(browser, "usage-e0");
+    await waitIdle(browser);
+    await click(browser, "key-SpaceL");
+    await click(browser, "tab-tap_hold");
+    await click(browser, "th-layer-2");
+    await waitIdle(browser);
+    await check(browser, "layer-taphold-light");
+    await setTheme(browser, "dark");
+    await check(browser, "layer-taphold-dark");
+    await setTheme(browser, "light");
+    await click(browser, "layer-2");
+    await check(browser, "layer-taphold-layer3-light");
+    await click(browser, "fw-tab");
+    await click(browser, "fwkey-Caps");
+    await click(browser, "fw-sec-taphold");
+    await waitIdle(browser);
+    await check(browser, "fw-layer-taphold-light");
+  });
+});
+
 describe("visual baselines: firmware mode", () => {
   let app;
   before(async () => {

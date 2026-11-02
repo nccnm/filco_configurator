@@ -34,11 +34,11 @@ Cần WebView2 Runtime (có sẵn trên Windows 11; bộ cài tự tải nếu t
 2. Mở ứng dụng: nó tự tìm bàn phím và đọc 4 layer (khoảng 0,75 giây). Đọc không thay đổi gì trên bàn phím.
 3. Chọn layer (tab hoặc phím 1-4), bấm một phím trên hình (hoặc đi bằng mũi tên), chọn hành động ở bảng dưới. "Áp cho"
    gán cùng hành động cho nhiều layer một lần. Gán xong, ứng dụng tự chọn phím kế tiếp: sang phải trong hàng, hết
-   hàng thì xuống đầu hàng dưới, hết hàng cuối thì về đầu hàng trên cùng (bỏ qua phím tap-hold, vì ô layer của nó bị
-   khóa). Đưa về mặc định hay gán bị từ chối thì vẫn ở phím cũ. Delete đưa ô về mặc định. Ctrl+Z / Ctrl+Y hoàn tác /
-   làm lại.
-   Bảng dưới tự mở đúng thẻ cho thứ phím đang giữ (Phím, Modifier, Media, Chuột, Hệ thống, Nâng cao), bật modifier đi
-   kèm, và cuộn để nút đang gán nằm giữa; focus vẫn ở bàn phím trên hình. Trang Firmware làm tương tự với bảng chọn mã.
+   hàng thì xuống đầu hàng dưới, hết hàng cuối thì về đầu hàng trên cùng. Đưa về mặc định, gán tap-hold hay gán bị
+   từ chối thì vẫn ở phím cũ. Delete đưa ô về mặc định.
+   Ctrl+Z / Ctrl+Y hoàn tác / làm lại.
+   Bảng dưới tự mở đúng thẻ cho thứ phím đang giữ (Phím, Modifier, Tap-hold, Media, Chuột, Hệ thống, Nâng cao), bật
+   modifier đi kèm, và cuộn để nút đang gán nằm giữa; focus vẫn ở bàn phím trên hình. Trang Firmware làm tương tự với bảng chọn mã.
 4. Bấm **Lưu N thay đổi** (Ctrl+S): ứng dụng đọc lại bàn phím, so với lúc bắt đầu sửa, sao lưu, rồi hiện bảng khác
    biệt từng ô (layer, phím, đang có, sẽ ghi, byte). Chỉ khi bấm **Ghi xuống bàn phím** mới ghi; nút Hủy có sẵn focus.
 5. Mỗi layer ghi xong được đọc lại và so đủ 512 byte. Lỗi giữa chừng thì ứng dụng đưa mọi layer đã ghi về bản sao lưu
@@ -66,13 +66,33 @@ Phím trên hình: viền màu layer là ô đã gán (khác ô trống), chấm
   lưu profile đó trong FILCO Assist sẽ dựng lại cả layer và xóa thay đổi làm ở đây.
 - Khi đang giữ Fn, firmware bỏ qua ô layer; lớp Fn nằm cố định trong firmware, ứng dụng này không đổi được.
 
-### Tap-hold và cấu hình trong firmware
+### Tap-hold theo layer
+
+Thẻ **Tap-hold** ở trang Layer đặt cho phím đang chọn: phím gửi khi chạm, thứ gửi khi giữ (một phím hoặc modifier, hoặc
+giữ để vào layer 1-4) và thời gian quyết định (mặc định 200 ms). Phím nào cũng đặt được, và cùng một phím có tap-hold
+riêng ở từng layer. Giữ quá thời gian, hoặc nhấn phím khác trong lúc giữ, là giữ. Fn + phím vẫn ra chức năng Fn của
+phím (Fn + ; vẫn là Home). Mỗi lúc có một phím đang giữ-ra-phím và một phím đang giữ-vào-layer; phím tap-hold thứ hai
+cùng loại nhấn trong lúc đó làm theo phím mặc định. Ô lưu dạng `08 chạm giữ thời_gian` (thời gian x 10 ms, 0 = 200 ms;
+giữ `f0`-`f3` = layer 1-4).
+
+Firmware gốc đọc ô loại 8 như ô trống, nên tap-hold cần firmware dựng có tap-hold theo layer (TOML
+`layer_tap_hold = true`). Ứng dụng tự lo việc này: khi các layer có tap-hold mà bàn phím chưa chạy firmware đó, **Lưu**
+dựng và kiểm thử firmware trước (bản nháp trang Firmware với công tắc Tap-hold theo layer bật), bảng khác biệt báo
+CheckSum sẽ nạp, rồi sau khi ghi layer ứng dụng sao lưu và mở trình cập nhật. Người dùng chỉ kiểm CheckSum và bấm
+Start; bàn phím cắm lại thì ứng dụng kiểm firmware và layer. Nạp firmware không đụng tới các trang layer. Nếu bỏ ngang,
+nút Lưu thành **Cập nhật firmware cho tap-hold** cho tới khi nạp xong.
+
+Bàn phím đang chạy tap-hold kiểu cũ (đặt cố định trong firmware, mục dưới): lần đầu đặt tap-hold cho một phím, hay sửa
+một phím tap-hold kiểu cũ, ứng dụng chuyển các tap-hold đó vào ô của cả 4 layer trong cùng bước hoàn tác, nên chúng vẫn
+chạy như cũ sau khi nạp.
+
+### Tap-hold kiểu cũ và cấu hình trong firmware
 
 Nếu bàn phím đang chạy một bản firmware tùy biến có khối thông tin (lệnh HID 0x30), ứng dụng đọc và **hiển thị** các
 thay đổi đó: phím tap-hold vẽ hành động khi giữ (nhỏ, phía trên) và khi gõ nhanh (nhãn chính), phím "giữ để vào
-layer" được tô đậm trên layer đó, và inspector hiện chi tiết tap-hold cùng các thay đổi Fn + phím. Ô layer của phím
-tap-hold bị khóa vì firmware quyết định. Firmware gốc (hay bản vá cũ không có khối) trả NACK và ứng dụng chỉ không
-hiện phần này.
+layer" được tô đậm trên layer đó, và inspector hiện chi tiết tap-hold cùng các thay đổi Fn + phím. Sửa một phím
+tap-hold kiểu cũ ở trang Layer chuyển chúng sang tap-hold theo layer (mục trên). Firmware gốc (hay bản vá cũ không có
+khối) trả NACK và ứng dụng chỉ không hiện phần này.
 
 ### Trang Firmware: sửa, dựng, kiểm thử, nạp
 

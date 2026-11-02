@@ -21,6 +21,8 @@
     tapHold?: TapHoldView | null;
     /** Firmware Fn-layer change on this key, if any. */
     fnEdit?: FirmwareEditView | null;
+    /** The firmware on the keyboard reads tap-hold keys from the layer slots (type 8); if not, saving updates it. */
+    layerTapHold?: boolean;
     layer: number;
     catalog: Catalog;
     disabled: boolean;
@@ -34,6 +36,7 @@
     base,
     tapHold = null,
     fnEdit = null,
+    layerTapHold = false,
     layer,
     catalog,
     disabled,
@@ -41,10 +44,11 @@
     onassign,
   }: Props = $props();
 
-  type Tab = "key" | "modifier" | "media" | "mouse" | "system" | "advanced";
+  type Tab = "key" | "modifier" | "tap_hold" | "media" | "mouse" | "system" | "advanced";
   const TABS: [Tab, Key][] = [
     ["key", "tab_key"],
     ["modifier", "tab_modifier"],
+    ["tap_hold", "tab_tap_hold"],
     ["media", "tab_media"],
     ["mouse", "tab_mouse"],
     ["system", "tab_system"],
@@ -57,6 +61,13 @@
   let scrollAmount = $state(1);
   let moveStep = $state(8);
   let raw = $state("");
+  // Tap-hold tab: what a tap sends, what holding does (a key, or HOLD_LAYER + n for layer n), the decision time
+  // in ms, and which of tap and hold the key grid fills.
+  let thTap = $state(0);
+  let thHold = $state(0);
+  let thTerm = $state(200);
+  let thField = $state<"tap" | "hold">("tap");
+  const HOLD_LAYER = 0xf0;
 
   const MOD_BITS: [number, string][] = [
     [0x01, "Ctrl"],
@@ -118,6 +129,8 @@
         return "media";
       case "system":
         return "system";
+      case "tap_hold":
+        return "tap_hold";
       default:
         return "advanced";
     }
@@ -140,6 +153,14 @@
       if (slot.kind === "mouse" && b1 === 3) scrollAmount = Math.abs(signed(b2)) || 1;
       if (slot.kind === "mouse" && b1 === 4)
         moveStep = Math.max(Math.abs(signed(b2)), Math.abs(signed(b3))) || 8;
+      if (slot.kind === "tap_hold") {
+        [thTap, thHold, thTerm, thField] = [b1, b2, (b3 || 20) * 10, "tap"];
+      } else {
+        // A new tap-hold starts from what the key sends now; holding is picked next.
+        const printed = catalog.keys.find((u) => u.legend === keyView?.legend)?.code ?? 0;
+        thTap = slot.kind === "key" && b2 !== 0 ? b2 : printed;
+        [thHold, thTerm, thField] = [0, 200, thTap ? "hold" : "tap"];
+      }
     });
   });
 
@@ -177,6 +198,8 @@
         return `01 03 ${hex(a.amount & 0xff)} 00`;
       case "mouse_move":
         return `01 04 ${hex(a.dx & 0xff)} ${hex(a.dy & 0xff)}`;
+      case "tap_hold":
+        return `08 ${hex(a.tap)} ${hex(a.hold)} ${hex(a.term)}`;
       default:
         return null;
     }
@@ -196,6 +219,28 @@
     onassign(targets, a);
   }
 
+  /** Sets the tap-hold fields; the slot is written once both tap and hold are set. */
+  function setTapHold(tap: number, hold: number, termMs: number) {
+    [thTap, thHold] = [tap, hold];
+    thTerm = Math.min(2550, Math.max(10, Math.round(termMs / 10) * 10 || 200));
+    if (tap && hold) assign({ type: "tap_hold", tap, hold, term: thTerm / 10 });
+  }
+
+  function pickTapHold(code: number) {
+    if (thField === "tap") {
+      setTapHold(code, thHold, thTerm);
+      if (!thHold) thField = "hold";
+    } else {
+      setTapHold(thTap, code, thTerm);
+    }
+  }
+
+  function legendOf(code: number): string {
+    return catalog.keys.find((u) => u.code === code)?.legend ?? `0x${hex(code)}`;
+  }
+
+  const thOff = $derived(disabled);
+
   function toggleLayer(l: number) {
     extraLayers = extraLayers.includes(l) ? extraLayers.filter((x) => x !== l) : [...extraLayers, l];
   }
@@ -214,6 +259,32 @@
   const rawValid = $derived(/^\s*([0-9a-f]{2}\s*){4}$/i.test(raw));
 </script>
 
+{#snippet keyGrid(isCurrent: (code: number) => boolean, off: boolean, onpick: (code: number) => void)}
+  <div class="groups">
+    {#each GROUPS as g (g)}
+      {@const items = filtered.filter((u) => u.group === g)}
+      {#if items.length}
+        <div class="group">
+          <h3 class="small muted">{t(`group_${g}`)}</h3>
+          <div class="grid">
+            {#each items as u (u.code)}
+              <button
+                class="cap"
+                class:current={isCurrent(u.code)}
+                title={`${u.name} (0x${hex(u.code)})`}
+                disabled={off}
+                onclick={() => onpick(u.code)}
+                data-testid={`usage-${hex(u.code)}`}
+                >{#if u.shifted}<span class="shift">{u.shifted}</span>{/if}<span>{u.legend}</span></button
+              >
+            {/each}
+          </div>
+        </div>
+      {/if}
+    {/each}
+  </div>
+{/snippet}
+
 <section class="inspector" data-testid="inspector">
   {#if !keyView || !slot}
     <header class="info" data-testid="no-key">
@@ -225,7 +296,6 @@
         {#each TABS as [id, label] (id)}
           <button role="tab" class="tab" aria-selected="false" disabled>{t(label)}</button>
         {/each}
-        <span class="later muted small">{t("macro_later")}</span>
       </div>
       <div class="panel">
         <h3 class="small muted">{t("shortcuts")}</h3>
@@ -315,7 +385,6 @@
             data-testid={`tab-${id}`}>{t(label)}</button
           >
         {/each}
-        <span class="later muted small">{t("macro_later")}</span>
       </div>
 
       <div class="panel" role="tabpanel" bind:this={panel}>
@@ -335,31 +404,78 @@
               >
             {/each}
           </div>
-          <div class="groups">
-            {#each GROUPS as g (g)}
-              {@const items = filtered.filter((u) => u.group === g)}
-              {#if items.length}
-                <div class="group">
-                  <h3 class="small muted">{t(`group_${g}`)}</h3>
-                  <div class="grid">
-                    {#each items as u (u.code)}
-                      {@const a = keyAction(u.code)}
-                      <button
-                        class="cap"
-                        class:current={current(a)}
-                        title={`${u.name} (0x${hex(u.code)})`}
-                        {disabled}
-                        onclick={() => assign(a)}
-                        data-testid={`usage-${hex(u.code)}`}
-                        >{#if u.shifted}<span class="shift">{u.shifted}</span>{/if}<span>{u.legend}</span
-                        ></button
-                      >
-                    {/each}
-                  </div>
-                </div>
-              {/if}
+          {@render keyGrid(
+            (code) => current(keyAction(code)),
+            disabled,
+            (code) => assign(keyAction(code)),
+          )}
+        {:else if tab === "tap_hold"}
+          {#if !layerTapHold}
+            <p class="note small muted" data-testid="tap-hold-upgrade">{t("tap_hold_upgrade_note")}</p>
+          {/if}
+          <div class="row">
+            <span class="label">{t("tap_hold_tap")}</span>
+            <button
+              class="chip"
+              aria-pressed={thField === "tap"}
+              disabled={thOff}
+              onclick={() => (thField = "tap")}
+              data-testid="th-tap">{thTap ? legendOf(thTap) : t("tap_hold_none")}</button
+            >
+            <span class="label">{t("tap_hold_hold")}</span>
+            <button
+              class="chip"
+              aria-pressed={thField === "hold" && thHold < HOLD_LAYER}
+              disabled={thOff}
+              onclick={() => (thField = "hold")}
+              data-testid="th-hold"
+              >{thHold && thHold < HOLD_LAYER ? legendOf(thHold) : t("tap_hold_key")}</button
+            >
+            {#each model.layers as l, i (i)}
+              <button
+                class="chip"
+                aria-pressed={thHold === HOLD_LAYER + i}
+                disabled={thOff || i === layer}
+                title={t("tap_hold_layer", { n: l.label })}
+                onclick={() => setTapHold(thTap, HOLD_LAYER + i, thTerm)}
+                data-testid={`th-layer-${i}`}>→ L{l.label}</button
+              >
             {/each}
           </div>
+          <div class="row">
+            <span class="label">{t("tap_hold_term")}</span>
+            <input
+              class="num"
+              type="number"
+              min="10"
+              max="2550"
+              step="10"
+              bind:value={thTerm}
+              onchange={() => setTapHold(thTap, thHold, thTerm)}
+              disabled={thOff}
+              aria-label={t("tap_hold_term")}
+              data-testid="th-term"
+            />
+            <span class="small">ms</span>
+            <span class="small muted">{t("tap_hold_hint")}</span>
+          </div>
+          <div class="row">
+            <input
+              type="search"
+              placeholder={t("search")}
+              bind:value={query}
+              aria-label={t("search")}
+              data-testid="th-search"
+            />
+            <span class="small muted"
+              >{t(thField === "tap" ? "tap_hold_pick_tap" : "tap_hold_pick_hold")}</span
+            >
+          </div>
+          {@render keyGrid(
+            (code) => (thField === "tap" ? thTap === code : thHold === code),
+            thOff,
+            pickTapHold,
+          )}
         {:else if tab === "modifier"}
           <p class="small muted">{t("modifier_only")}</p>
           <div class="grid">
@@ -627,7 +743,7 @@
   .tab {
     border: 1px solid transparent;
     border-radius: 7px;
-    padding: 5px 12px;
+    padding: 3px 12px;
     background: transparent;
     font-size: 15px;
     text-align: left;
@@ -637,11 +753,6 @@
     border-color: var(--acc);
     color: var(--acc);
     font-weight: 600;
-  }
-  .later {
-    margin-top: auto;
-    padding: 6px 13px 0;
-    white-space: nowrap;
   }
   .panel {
     overflow-y: auto;
@@ -737,5 +848,19 @@
     height: 36px;
     padding: 0 13px;
     font-size: 14px;
+  }
+  .label {
+    font-weight: 500;
+    font-size: 13px;
+  }
+  .label + .chip {
+    min-width: 64px;
+  }
+  .chip + .label {
+    margin-left: 14px;
+  }
+  .num {
+    width: 76px;
+    height: 36px;
   }
 </style>

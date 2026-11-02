@@ -210,6 +210,38 @@ pub fn slot_label(kind: SlotKind, lang: Lang) -> SlotLabel {
                 format!("Macro {index}")
             },
         ),
+        SlotKind::TapHold { tap, hold, .. } => {
+            let ms = kind.term_ms().unwrap_or(0);
+            let (hold_short, hold_long) = match kind.hold_layer() {
+                Some(l) => (
+                    format!("L{}", l + 1),
+                    if vi {
+                        format!("bật layer {}", l + 1)
+                    } else {
+                        format!("layer {}", l + 1)
+                    },
+                ),
+                None => (key_legend(hold), key_name(hold)),
+            };
+            (
+                format!(
+                    "{}
+{hold_short}",
+                    key_legend(tap)
+                ),
+                if vi {
+                    format!(
+                        "Tap-hold: chạm {}, giữ {hold_long} (quyết định sau {ms} ms)",
+                        key_name(tap)
+                    )
+                } else {
+                    format!(
+                        "Tap-hold: tap {}, hold {hold_long} (decided after {ms} ms)",
+                        key_name(tap)
+                    )
+                },
+            )
+        }
         SlotKind::Other { bytes } => {
             let t = bytes[0] & 0x0f;
             let hex = crate::hex::encode_spaced(&bytes);
@@ -257,6 +289,24 @@ mod tests {
         assert_eq!(label("03 e9 00 00", Lang::En).short, "Vol +");
         assert_eq!(label("04 02 00 00", Lang::En).short, "Sleep");
         assert_eq!(label("06 02 00 00", Lang::Vi).long, "Macro số 2");
+        assert_eq!(
+            label("08 29 e0 14", Lang::En).short,
+            "Esc
+Ctrl"
+        );
+        assert_eq!(
+            label("08 29 e0 14", Lang::En).long,
+            "Tap-hold: tap Escape, hold Left Control (decided after 200 ms)"
+        );
+        assert_eq!(
+            label("08 2c f2 1e", Lang::Vi).short,
+            "Space
+L3"
+        );
+        assert_eq!(
+            label("08 33 e7 00", Lang::Vi).long,
+            "Tap-hold: chạm ; :, giữ Right Windows (quyết định sau 200 ms)"
+        );
         assert_eq!(
             label("07 01 02 03", Lang::En).long,
             "Unsupported type 7: 07 01 02 03"
