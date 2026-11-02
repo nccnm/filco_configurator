@@ -92,6 +92,28 @@ impl Ctx<'_> {
         (a == c).then_some(a)
     }
 
+    /// The code key `k` sends in the new image, pressed alone with the layer slots empty.
+    fn plain(&self, k: u8) -> Result<Option<u8>, Stop> {
+        Ok(first_down(&V72::new(&self.b.image, &[])?.chord(&[], k)?))
+    }
+
+    /// The key a scenario presses next to a tap-hold key: the first of `prefer` that is no tap-hold key, not the
+    /// Fn key, not in `taken`, and sends an ordinary key code on its own, so a config that makes the usual key a
+    /// tap-hold key, a modifier or Fn does not break the scenario. The first of `prefer` if none qualifies.
+    fn helper(&self, prefer: &[&str], taken: &[u8]) -> Result<u8, Stop> {
+        let busy: Vec<u8> = self.tap_hold_specs().iter().map(|s| s.0).collect();
+        for name in prefer {
+            let k = self.key(name);
+            if k == self.b.fn_position || busy.contains(&k) || taken.contains(&k) {
+                continue;
+            }
+            if self.plain(k)?.is_some_and(|c| (0x04..=0x65).contains(&c)) {
+                return Ok(k);
+            }
+        }
+        Ok(self.key(prefer[0]))
+    }
+
     fn tap_hold_specs(&self) -> Vec<(u8, u8)> {
         let c = &self.b.config;
         c.tap_key
@@ -193,20 +215,33 @@ pub fn run_all(b: &Build, out: &mut Out) -> Result<bool, Stop> {
             continue;
         }
         let sp = first_down(&stock.chord(&[], k)?);
-        let sf = first_down(&stock.chord(&[STOCK_FN], k)?);
         let np = first_down(&new.chord(&[], k)?);
-        let nf = first_down(&new.chord(&[new_fn], k)?);
+        // Fn + Left Shift and Fn + Alt arm a mode that outlasts the chord: the next key with a Fn function, even
+        // pressed without Fn, ends it, and 1-4 then clear that layer's macros or select the layer (manual p. 10).
+        // Which key comes next with a Fn function depends on the config, so these chords run on fresh machines
+        // and the armed mode never reaches the next key of this walk.
+        let arms = |c: Option<u8>| matches!(c, Some(0xE1 | 0xE2 | 0xE6));
+        let (sf, nf) = if arms(sp) || arms(np) {
+            (
+                first_down(&V72::new(&b.stock, &[])?.chord(&[STOCK_FN], k)?),
+                first_down(&V72::new(&b.image, &[])?.chord(&[new_fn], k)?),
+            )
+        } else {
+            (
+                first_down(&stock.chord(&[STOCK_FN], k)?),
+                first_down(&new.chord(&[new_fn], k)?),
+            )
+        };
         let in_keymap = cfg.keymap.iter().find(|e| e.0 == k).map(|e| e.1);
         let in_fn = cfg.fn_layer.iter().find(|e| e.0 == k).map(|e| e.1);
-        let mut want_p = in_keymap.or(sp);
+        let plain = in_keymap.or(sp);
         let th = specs.iter().find(|s| s.0 == k);
-        if let Some(t) = th {
-            want_p = Some(t.1); // a tap in the chord; holds are tested below
-        }
+        // A tap-hold key sends its tap in the chord (holds are tested below); with Fn held it passes through.
+        let want_p = th.map_or(plain, |t| Some(t.1));
         let want_f = match in_fn {
             Some(Some(c)) => Some(c),
-            Some(None) => want_p,
-            None if in_keymap.is_some() && cx.capable(k) != Some(true) => want_p,
+            Some(None) => plain,
+            None if in_keymap.is_some() && cx.capable(k) != Some(true) => plain,
             None => sf,
         };
         let mark = if in_fn.is_some() || in_keymap.is_some() || th.is_some() {
@@ -305,9 +340,9 @@ pub fn run_all(b: &Build, out: &mut Out) -> Result<bool, Stop> {
 #[allow(clippy::too_many_lines, clippy::many_single_char_names)]
 fn test_tap_hold(cx: &Ctx<'_>, (k, tap, hold, term): (u8, u8, u8, u16), out: &mut Out) -> Result<bool, Stop> {
     let term = u32::from(term);
-    let other = cx.key("C");
+    let other = cx.helper(&["C", "V", "X", "Z", "N", "M"], &[])?;
     let fnk = cx.b.fn_position;
-    let oc = 0x06; // C
+    let oc = cx.plain(other)?.unwrap_or(0);
     let mut e = V72::new(&cx.b.image, &[])?;
     let all = Cell::new(true);
     let n = |k: u8| cx.n(k).to_string();
@@ -374,27 +409,29 @@ fn test_tap_hold(cx: &Ctx<'_>, (k, tap, hold, term): (u8, u8, u8, u16), out: &mu
         &[(D, k, 30), (U, k, 40), (D, k, 30), (U, k, 60)],
         &[(tap, d), (tap, u), (tap, d), (tap, u)],
     )?;
-    let stock_code = cx.b.stock[filco_firmware::v72::NAME_KEYMAP + 2 * usize::from(k)];
+    // The key's code in the built image, not in stock: when the config removes the key's Fn function, the stock
+    // byte is a Fn entry reference and the image holds the plain code the key now sends with Fn held.
+    let plain_code = cx.b.image[filco_firmware::v72::NAME_KEYMAP + 2 * usize::from(k)];
     run(
         &mut e,
         out,
         format!("{} + {} (passes through)", n(fnk), n(k)),
         &[(D, fnk, 40), (D, k, 40), (U, k, 40), (U, fnk, 60)],
-        &[(stock_code, d), (stock_code, u)],
+        &[(plain_code, d), (plain_code, u)],
     )?;
     run(
         &mut e,
         out,
         format!("{} + {}, {} released first", n(fnk), n(k), n(fnk)),
         &[(D, fnk, 40), (D, k, 40), (U, fnk, 40), (U, k, 60)],
-        &[(stock_code, d), (stock_code, u)],
+        &[(plain_code, d), (plain_code, u)],
     )?;
-    let j = cx.key("J");
+    let j = cx.helper(&["J", "K", "L", "I", "U", "M"], &[])?;
     let want_fj = first_down(&V72::new(&cx.b.image, &[])?.chord(&[fnk], j)?).unwrap_or(0);
     run(
         &mut e,
         out,
-        format!("{} + {} + J", n(k), n(fnk)),
+        format!("{} + {} + {}", n(k), n(fnk), n(j)),
         &[
             (D, k, 40),
             (D, fnk, 40),
@@ -433,8 +470,13 @@ fn test_layer_hold(
     out: &mut Out,
 ) -> Result<bool, Stop> {
     let term = u32::from(term);
-    let (h, bk, dk, rk) = (cx.key("H"), cx.key("B"), cx.key("D"), cx.key("R"));
+    let h = cx.helper(&["H", "J", "K", "L", "Y", "U"], &[])?;
+    let bk = cx.helper(&["B", "N", "M", "V"], &[h])?;
+    let dk = cx.helper(&["D", "F", "G", "S"], &[h, bk])?;
+    let rk = cx.helper(&["R", "T", "E", "W"], &[h, bk, dk])?;
     let fnk = cx.b.fn_position;
+    // With Fn held the key passes through: its code in the built image (see test_tap_hold).
+    let plain_code = cx.b.image[filco_firmware::v72::NAME_KEYMAP + 2 * usize::from(k)];
     let slots = [
         ((layer, h), [2, 0, LEFT, 0]),
         ((layer, bk), [2, 1, LEFT, 0]),
@@ -444,15 +486,19 @@ fn test_layer_hold(
     let mut e = V72::new(&cx.b.image, &slots)?;
     let all = Cell::new(true);
     let (d, u) = (DOWN, UP);
-    let (c_h, c_d) = (0x0B, 0x07);
+    let (c_h, c_d) = (cx.plain(h)?.unwrap_or(0), cx.plain(dk)?.unwrap_or(0));
     let n = |k: u8| cx.n(k).to_string();
     out.push(format!(
-        "Tap-hold {}: tap = {}, hold = layer {}, term {term} ms (test slots in layer {}: H = Left, B = Ctrl+Left, \
-         D = Backspace, R = mouse left):",
+        "Tap-hold {}: tap = {}, hold = layer {}, term {term} ms (test slots in layer {}: {} = Left, {} = Ctrl+Left, \
+         {} = Backspace, {} = mouse left):",
         n(k),
         name_of(Some(tap)),
         layer + 1,
-        layer + 1
+        layer + 1,
+        n(h),
+        n(bk),
+        n(dk),
+        n(rk)
     ));
     let run = |e: &mut V72, out: &mut Out, label: String, a: &[(Act, u8, u32)], w: &[(u8, u8)]| {
         let good = timed(e, out, &label, a, w, None)?;
@@ -484,42 +530,42 @@ fn test_layer_hold(
     run(
         &mut e,
         out,
-        format!("{} + H tapped, all within {term} ms", n(k)),
+        format!("{} + {} tapped, all within {term} ms", n(k), n(h)),
         &[(D, k, 40), (D, h, 40), (U, h, 40), (U, k, 60)],
         &[(tap, d), (c_h, d), (c_h, u), (tap, u)],
     )?;
     run(
         &mut e,
         out,
-        format!("fast roll: {}, D, {} up, D up", n(k), n(k)),
+        format!("fast roll: {}, {}, {} up, {} up", n(k), n(dk), n(k), n(dk)),
         &[(D, k, 30), (D, dk, 30), (U, k, 60), (U, dk, 60)],
         &[(tap, d), (c_d, d), (tap, u), (c_d, u)],
     )?;
     run(
         &mut e,
         out,
-        format!("{} held, then H", n(k)),
+        format!("{} held, then {}", n(k), n(h)),
         &[(D, k, term + 30), (D, h, 40), (U, h, 40), (U, k, 60)],
         &[(LEFT, d), (LEFT, u)],
     )?;
     run(
         &mut e,
         out,
-        format!("H down during the wait, held past {term} ms"),
+        format!("{} down during the wait, held past {term} ms", n(h)),
         &[(D, k, 50), (D, h, term), (U, h, 40), (U, k, 60)],
         &[(LEFT, d), (LEFT, u)],
     )?;
     run(
         &mut e,
         out,
-        format!("{} held, H down, {} up first, H up", n(k), n(k)),
+        format!("{} held, {} down, {} up first, {} up", n(k), n(h), n(k), n(h)),
         &[(D, k, term + 30), (D, h, 40), (U, k, 40), (U, h, 60)],
         &[(LEFT, d), (LEFT, u)],
     )?;
     run(
         &mut e,
         out,
-        format!("D down, {} held, D up, {} up", n(k), n(k)),
+        format!("{} down, {} held, {} up, {} up", n(dk), n(k), n(dk), n(k)),
         &[(D, dk, 40), (D, k, term + 30), (U, dk, 40), (U, k, 60)],
         &[(c_d, d), (c_d, u)],
     )?;
@@ -544,7 +590,7 @@ fn test_layer_hold(
     and(&all, good);
     out.push(format!(
         "  {:44} {:34} {}",
-        format!("{} held, B (slot Ctrl+Left)", n(k)),
+        format!("{} held, {} (slot Ctrl+Left)", n(k), n(bk)),
         if modifiers & 1 == 1 {
             "LCtrl+Left while held"
         } else {
@@ -566,7 +612,7 @@ fn test_layer_hold(
     and(&all, good);
     out.push(format!(
         "  {:44} {:34} {}",
-        format!("{} held, R (mouse left), {} up first", n(k), n(k)),
+        format!("{} held, {} (mouse left), {} up first", n(k), n(rk), n(k)),
         if good { "button down, then up" } else { "stuck" },
         ok(good)
     ));
@@ -575,7 +621,7 @@ fn test_layer_hold(
         out,
         format!("{} + {} (passes through)", n(fnk), n(k)),
         &[(D, fnk, 40), (D, k, 40), (U, k, 40), (U, fnk, 60)],
-        &[(tap, d), (tap, u)],
+        &[(plain_code, d), (plain_code, u)],
     )?;
     if let Some((ck, _, chold, _)) = key_hold {
         run(
@@ -595,7 +641,8 @@ fn test_two_layer_holds(cx: &Ctx<'_>, out: &mut Out) -> Result<bool, Stop> {
     let (ka, tap_a, la, term_a) = cx.b.config.tap_layers[0];
     let (kb, tap_b, lb, term_b) = cx.b.config.tap_layers[1];
     let term = u32::from(term_a.max(term_b));
-    let (h, o) = (cx.key("H"), cx.key("O"));
+    let h = cx.helper(&["H", "J", "K", "L", "Y", "U"], &[])?;
+    let o = cx.helper(&["O", "P", "I", "U"], &[h])?;
     let c_o = 0x12;
     let slots = [((la, h), [2, 0, LEFT, 0]), ((lb, o), [2, 7, c_o, 0])];
     let mut e = V72::new(&cx.b.image, &slots)?;
@@ -603,13 +650,15 @@ fn test_two_layer_holds(cx: &Ctx<'_>, out: &mut Out) -> Result<bool, Stop> {
     let (d, u) = (DOWN, UP);
     let n = |k: u8| cx.n(k).to_string();
     out.push(format!(
-        "Two layer keys: {} = layer {}, {} = layer {} (test slots: H = Left in layer {}, O = Ctrl+Shift+Alt+O in \
+        "Two layer keys: {} = layer {}, {} = layer {} (test slots: {} = Left in layer {}, {} = Ctrl+Shift+Alt+O in \
          layer {}):",
         n(ka),
         la + 1,
         n(kb),
         lb + 1,
+        n(h),
         la + 1,
+        n(o),
         lb + 1
     ));
     e.env.calls.clear();
@@ -637,7 +686,7 @@ fn test_two_layer_holds(cx: &Ctx<'_>, out: &mut Out) -> Result<bool, Stop> {
     and(&all, good);
     out.push(format!(
         "  {:44} {:34} {} (modifiers while held {modifiers:#04x})",
-        format!("{} held, O", n(kb)),
+        format!("{} held, {}", n(kb), n(o)),
         fmt_events(&got),
         ok(good)
     ));
@@ -674,7 +723,14 @@ fn test_two_layer_holds(cx: &Ctx<'_>, out: &mut Out) -> Result<bool, Stop> {
     run(
         &mut e,
         out,
-        format!("{} + H held, {} up, {} held, H up", n(ka), n(ka), n(kb)),
+        format!(
+            "{} + {} held, {} up, {} held, {} up",
+            n(ka),
+            n(h),
+            n(ka),
+            n(kb),
+            n(h)
+        ),
         &[
             (D, ka, term + 30),
             (D, h, 40),
