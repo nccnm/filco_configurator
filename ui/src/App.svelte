@@ -174,7 +174,12 @@
       performance.mark("ui-ready");
       if (store.snap?.simulated) {
         // Simulator controls for the E2E tests (the command exists only in the e2e-sim build).
-        Object.assign(window, { __kleSim: (op: string) => store.run("refresh", () => ipc.e2eSim(op)) });
+        // A control waits for the command running (`run` drops a command while busy).
+        const sim = async (op: string) => {
+          while (store.busy) await new Promise((r) => setTimeout(r, 10));
+          return store.run("refresh", () => ipc.e2eSim(op));
+        };
+        Object.assign(window, { __kleSim: sim });
       }
       store.catalog = await ipc.catalog();
       await store.run("refresh", ipc.refresh);

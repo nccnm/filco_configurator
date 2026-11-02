@@ -41,6 +41,18 @@ async function report(browser) {
 const attr = (browser, sel, name) =>
   browser.execute((s, n) => document.querySelector(s)?.getAttribute(n) ?? null, sel, name);
 
+/** Waits for the error banner with this code; says what the inspector held if it does not come. */
+async function waitError(browser, code) {
+  const banner = () => attr(browser, '[data-testid="error-banner"]', "data-code");
+  try {
+    await browser.waitUntil(async () => (await banner()) === code, { timeout: 3000, interval: 25 });
+  } catch {
+    const raw = await (await byTest(browser, "raw-input")).getValue().catch(() => "?");
+    const hex = await (await byTest(browser, "slot-hex")).getText();
+    assert.fail(`no ${code} banner (got ${await banner()}); raw input "${raw}", slot ${hex}`);
+  }
+}
+
 /** Waits until the key with this id is the selected one. */
 async function waitSelected(browser, key) {
   const el = await byTest(browser, `key-${key}`);
@@ -225,7 +237,7 @@ describe("keyboard layer editor (simulated keyboard)", () => {
     await input.setValue("06 01 00 00");
     await click(browser, "raw-assign");
     await waitIdle(browser);
-    assert.equal(await attr(browser, '[data-testid="error-banner"]', "data-code"), "edit_invalid");
+    await waitError(browser, "edit_invalid");
     // A refused edit keeps the key selected.
     assert.equal(await attr(browser, '[data-testid="key-Q"]', "aria-pressed"), "true");
     await click(browser, "tab-key");

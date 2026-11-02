@@ -90,14 +90,23 @@ export async function openApp(env = {}) {
 
 /** Waits until the app reports `state` (data-state of the root) and is not busy. */
 export async function waitState(browser, state, timeout = 15000) {
-  await browser.waitUntil(
-    async () =>
-      browser.execute((s) => {
-        const el = document.querySelector('[data-testid="app"]');
-        return !!el && el.getAttribute("data-state") === s && el.getAttribute("data-busy") === "";
-      }, state),
-    { timeout, interval: 25, timeoutMsg: `state ${state} not reached` },
-  );
+  const now = () =>
+    browser.execute(() => {
+      const el = document.querySelector('[data-testid="app"]');
+      return { state: el?.getAttribute("data-state"), busy: el?.getAttribute("data-busy") };
+    });
+  try {
+    await browser.waitUntil(
+      async () => {
+        const n = await now();
+        return n.state === state && n.busy === "";
+      },
+      { timeout, interval: 25 },
+    );
+  } catch {
+    const n = await now();
+    throw new Error(`state ${state} not reached: data-state ${n.state}, data-busy "${n.busy}"`);
+  }
 }
 
 export async function waitIdle(browser, timeout = 15000) {
@@ -116,8 +125,12 @@ export async function click(browser, id) {
   await el.click();
 }
 
-/** Simulator controls of the e2e-sim build. */
+/**
+ * Simulator controls of the e2e-sim build. They go through the app's command queue, which drops a command while
+ * another runs, so wait for the app to be idle first (a dropped `replug` would leave the keyboard unplugged).
+ */
 export async function sim(browser, op) {
+  await waitIdle(browser);
   await browser.execute(async (o) => {
     await window.__kleSim(o);
   }, op);
