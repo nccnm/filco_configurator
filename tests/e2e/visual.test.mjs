@@ -181,11 +181,6 @@ describe("visual baselines: tap-hold per layer", () => {
     await setTheme(browser, "light");
     await click(browser, "layer-2");
     await check(browser, "layer-taphold-layer3-light");
-    await click(browser, "fw-tab");
-    await click(browser, "fwkey-Caps");
-    await click(browser, "fw-sec-taphold");
-    await waitIdle(browser);
-    await check(browser, "fw-layer-taphold-light");
   });
 });
 
@@ -213,7 +208,7 @@ describe("visual baselines: firmware mode", () => {
     });
   }
 
-  it("tap-hold section of a firmware key", async () => {
+  it("a tap-hold key of the older firmware", async () => {
     const { browser } = app;
     await setTheme(browser, "light");
     await click(browser, "fwkey-Caps");

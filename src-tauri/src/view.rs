@@ -542,8 +542,6 @@ pub struct FwKeyView {
     pub custom: bool,
     /// `layout_specific`, `fn_key`, `tap_hold`.
     pub fn_locked: Option<String>,
-    /// `has_fn`, `fn_key`.
-    pub tap_hold_locked: Option<String>,
 }
 
 /// One step of a build.
@@ -622,8 +620,6 @@ pub struct FwView {
     pub can_redo: bool,
     pub fn_slots_used: u32,
     pub fn_slots: u32,
-    pub tap_key_used: u32,
-    pub tap_layer_used: u32,
     /// The draft reads tap-hold keys from the layer slots (type 8).
     pub layer_tap_hold: bool,
     /// Index of the Fn key.
@@ -637,27 +633,11 @@ pub struct FwView {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum FwEditInput {
-    SetFn {
-        key: u8,
-        code: Option<u8>,
-    },
-    SetDefault {
-        key: u8,
-        code: u8,
-    },
-    SetTapHold {
-        key: u8,
-        tap_hold: Option<FwTapHoldView>,
-    },
-    KeyToBase {
-        key: u8,
-    },
-    KeyToStock {
-        key: u8,
-    },
-    SetLayerTapHold {
-        on: bool,
-    },
+    SetFn { key: u8, code: Option<u8> },
+    SetDefault { key: u8, code: u8 },
+    KeyToBase { key: u8 },
+    KeyToStock { key: u8 },
+    SetLayerTapHold { on: bool },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]

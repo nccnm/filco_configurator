@@ -141,16 +141,15 @@ pub enum FwEdit {
     SetFn { key: u8, code: Option<u8> },
     /// Default code of the key, on every layer and layout.
     SetDefault { key: u8, code: u8 },
-    /// Makes the key tap-hold, or plain again with `None`.
-    SetTapHold { key: u8, tap_hold: Option<TapHold> },
     /// Everything of one key back to what the keyboard holds.
     KeyToBase { key: u8 },
     /// Everything of one key back to stock V72.
     KeyToStock { key: u8 },
     /// Build name (1-32 letters, digits, `_` or `-`).
     SetName(String),
-    /// Tap-hold keys set per layer in the layer slots (type 8) instead of the global ones of the draft; turning
-    /// it on drops the global tap-hold keys, which it replaces.
+    /// Tap-hold keys set per layer in the layer slots (type 8). Turning it on drops the tap-hold keys an older
+    /// build set in the firmware itself (the app moves them into the slots first). Tap-hold is not edited here
+    /// otherwise: a draft keeps the older tap-hold keys of the keyboard as they are, and makes no new ones.
     SetLayerTapHold(bool),
 }
 
@@ -251,7 +250,6 @@ fn edited(cfg: &Config, base: &Config, stock: &Stock, edit: &FwEdit) -> Config {
             let v = (code != fw.normal(key, NAME_KEYMAP, "QWERTY")).then_some(code);
             upsert(&mut c.keymap, key, v);
         }
-        FwEdit::SetTapHold { key, tap_hold } => set_tap_hold(&mut c, key, tap_hold),
         FwEdit::KeyToBase { key } => copy_key(&mut c, base, key),
         FwEdit::KeyToStock { key } => copy_key(&mut c, &stock_config(""), key),
         FwEdit::SetName(ref n) => c.name.clone_from(n),
@@ -284,9 +282,6 @@ pub struct FwKey {
     /// Why Fn + key cannot be edited: `layout_specific` (Fn function in one bitmap variant only: W, R, X, C),
     /// `fn_key`, `tap_hold`.
     pub fn_locked: Option<&'static str>,
-    /// Why the key cannot be a global tap-hold key: `layer_tap` (tap-hold is set per layer on the layer page),
-    /// `has_fn` (remove its Fn function first), `fn_key`.
-    pub tap_hold_locked: Option<&'static str>,
 }
 
 impl FwKey {
@@ -465,15 +460,6 @@ impl FwDraft {
                 Some("layout_specific")
             } else if tap_hold.is_some() {
                 Some("tap_hold")
-            } else {
-                None
-            },
-            tap_hold_locked: if self.working.layer_tap_hold {
-                Some("layer_tap")
-            } else if is_fn_key {
-                Some("fn_key")
-            } else if capable != Some(false) {
-                Some("has_fn")
             } else {
                 None
             },
@@ -822,18 +808,8 @@ mod tests {
             .unwrap_err();
         assert!(e.to_string().contains("39 Fn entries"), "{e}");
         assert_eq!(d.changed_keys(), vec![o], "a refused edit changes nothing");
-        // Two layer holds already: a third is refused.
         let tab = idx(&s, "Tab");
         d.apply(&s, &FwEdit::SetFn { key: tab, code: None }).unwrap();
-        let third = FwEdit::SetTapHold {
-            key: tab,
-            tap_hold: Some(TapHold {
-                tap: 0x2B,
-                hold: Hold::Layer(1),
-                term_ms: 300,
-            }),
-        };
-        assert!(d.apply(&s, &third).is_err());
         d.undo(&s);
         d.undo(&s);
         assert!(!d.is_changed());
@@ -855,20 +831,7 @@ mod tests {
         d.apply(&s, &FwEdit::SetLayerTapHold(true)).unwrap();
         assert_eq!(d.layer_tap_hold(), (true, false));
         assert!(d.working().tap_key.is_none() && d.working().tap_layers.is_empty());
-        let k = d.key(caps, p);
-        assert_eq!((k.tap_hold, k.tap_hold_locked), (None, Some("layer_tap")));
-        let older = FwEdit::SetTapHold {
-            key: caps,
-            tap_hold: Some(TapHold {
-                tap: 0x29,
-                hold: Hold::Key(0xE0),
-                term_ms: 200,
-            }),
-        };
-        assert!(
-            d.apply(&s, &older).is_err(),
-            "no firmware tap-hold next to layer tap-hold"
-        );
+        assert_eq!(d.key(caps, p).tap_hold, None);
         d.undo(&s);
         assert_eq!(d.layer_tap_hold(), (false, false));
         assert!(
@@ -887,19 +850,7 @@ mod tests {
             load_saved(tmp.path(), &s).is_none(),
             "nothing saved when unchanged"
         );
-        let caps = idx(&s, "CapsLock");
-        d.apply(
-            &s,
-            &FwEdit::SetTapHold {
-                key: caps,
-                tap_hold: Some(TapHold {
-                    tap: 0x29,
-                    hold: Hold::Key(0xE0),
-                    term_ms: 180,
-                }),
-            },
-        )
-        .unwrap();
+        d.apply(&s, &FwEdit::SetLayerTapHold(true)).unwrap();
         save(tmp.path(), &s, &d).unwrap();
         assert_eq!(load_saved(tmp.path(), &s).as_ref(), Some(d.working()));
 

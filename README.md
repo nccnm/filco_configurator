@@ -77,7 +77,7 @@ giữ `f0`-`f3` = layer 1-4).
 
 Firmware gốc đọc ô loại 8 như ô trống, nên tap-hold cần firmware dựng có tap-hold theo layer (TOML
 `layer_tap_hold = true`). Ứng dụng tự lo việc này: khi các layer có tap-hold mà bàn phím chưa chạy firmware đó, **Lưu**
-dựng và kiểm thử firmware trước (bản nháp trang Firmware với công tắc Tap-hold theo layer bật), bảng khác biệt báo
+dựng và kiểm thử firmware trước (bản nháp trang Firmware cộng tap-hold theo layer), bảng khác biệt báo
 CheckSum sẽ nạp, rồi sau khi ghi layer ứng dụng sao lưu và mở trình cập nhật. Người dùng chỉ kiểm CheckSum và bấm
 Start; bàn phím cắm lại thì ứng dụng kiểm firmware và layer. Nạp firmware không đụng tới các trang layer. Nếu bỏ ngang,
 nút Lưu thành **Cập nhật firmware cho tap-hold** cho tới khi nạp xong.
@@ -96,12 +96,13 @@ khối) trả NACK và ứng dụng chỉ không hiện phần này.
 
 ### Trang Firmware: sửa, dựng, kiểm thử, nạp
 
-Tab **Firmware** (sau Layer 4) sửa phần nằm trong firmware: Fn + phím, keymap mặc định và tap-hold. Thiết kế:
-`docs/FIRMWARE_UI_DESIGN.md`.
+Tab **Firmware** (sau Layer 4) sửa phần nằm trong firmware: Fn + phím và keymap mặc định. Tap-hold không đặt ở đây
+mà ở trang Layer (mục trên); bản nháp giữ nguyên tap-hold kiểu cũ của bàn phím, nếu có, và không tạo tap-hold kiểu cũ
+mới. Thiết kế: `docs/FIRMWARE_UI_DESIGN.md`.
 
 1. Bàn phím trên hình vẽ Fn + phím: chức năng Fn là nhãn lớn, tên phím nhỏ ở trên, phím không có chức năng Fn để trống.
    Nhấp chuột, di chuyển chuột, cuộn và âm lượng vẽ bằng icon như manual. Chọn một phím rồi sửa ở bảng dưới
-   (Tap-hold, Fn + phím, Mặc định). Mỗi thay đổi được vá thử ngay trên firmware V72 gốc; thay đổi firmware không cho
+   (Fn + phím, Mặc định). Mỗi thay đổi được vá thử ngay trên firmware V72 gốc; thay đổi firmware không cho
    phép (hết 39 mục Fn, phím Fn, W/R/X/C phụ thuộc bố cục...) bị từ chối kèm lý do.
 2. Bản nháp tự lưu (`%LOCALAPPDATA%\FilcoConfigurator\firmware_draft.toml`); Ctrl+Z / Ctrl+Y, xuất / nhập TOML ở menu
    **Thêm**. Bản nháp bắt đầu từ cấu hình đang chạy trên bàn phím (đọc từ khối thông tin), hoặc V72 gốc nếu không có.

@@ -1078,7 +1078,8 @@ mod tests {
         let fw = app.snapshot().fw.expect("firmware mode after the read");
         assert_eq!(fw.on_keyboard.as_deref(), Some("HJKL_CapsSpace2_Info"));
         assert_eq!(fw.on_keyboard_tag, Some(0x1321));
-        assert_eq!((fw.changes, fw.fn_slots_used, fw.tap_layer_used), (0, 39, 2));
+        assert_eq!((fw.changes, fw.fn_slots_used), (0, 39));
+        assert_eq!(fw.keys.iter().filter(|k| k.tap_hold.is_some()).count(), 3);
         assert_eq!(fw.suggested_name, "HJKL_CapsSpace2_Info_2");
 
         // Fn + O = Home instead of PrintScreen; the draft is autosaved.
@@ -1144,7 +1145,8 @@ mod tests {
         app.refresh(&mut |_| {});
         let fw = app.snapshot().fw.unwrap();
         assert_eq!(fw.on_keyboard.as_deref(), Some("HJKL_CapsSpace2_Info"));
-        assert_eq!((fw.changes, fw.tap_layer_used), (0, 2));
+        assert_eq!(fw.changes, 0);
+        assert_eq!(fw.keys.iter().filter(|k| k.tap_hold.is_some()).count(), 3);
     }
 
     #[test]

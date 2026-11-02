@@ -183,11 +183,7 @@ custom: boolean,
 /**
  * `layout_specific`, `fn_key`, `tap_hold`.
  */
-fn_locked: string | null, 
-/**
- * `has_fn`, `fn_key`.
- */
-tap_hold_locked: string | null, };
+fn_locked: string | null, };
 
 export type FwStepView = { 
 /**
@@ -263,7 +259,7 @@ on_keyboard: string | null, on_keyboard_tag: number | null, keys: Array<FwKeyVie
 /**
  * Keys that differ from the keyboard.
  */
-changes: number, can_undo: boolean, can_redo: boolean, fn_slots_used: number, fn_slots: number, tap_key_used: number, tap_layer_used: number, 
+changes: number, can_undo: boolean, can_redo: boolean, fn_slots_used: number, fn_slots: number, 
 /**
  * The draft reads tap-hold keys from the layer slots (type 8).
  */
@@ -273,7 +269,7 @@ layer_tap_hold: boolean,
  */
 fn_key: number, suggested_name: string, build: FwBuildView | null, flash: FwFlashView | null, };
 
-export type FwEditInput = { "type": "set_fn", key: number, code: number | null, } | { "type": "set_default", key: number, code: number, } | { "type": "set_tap_hold", key: number, tap_hold: FwTapHoldView | null, } | { "type": "key_to_base", key: number, } | { "type": "key_to_stock", key: number, } | { "type": "set_layer_tap_hold", on: boolean, };
+export type FwEditInput = { "type": "set_fn", key: number, code: number | null, } | { "type": "set_default", key: number, code: number, } | { "type": "key_to_base", key: number, } | { "type": "key_to_stock", key: number, } | { "type": "set_layer_tap_hold", on: boolean, };
 
 export type Snapshot = { phase: Phase, lang: UiLang, devices: Array<DeviceView>, device: DeviceView | null, model_id: string | null, 
 /**

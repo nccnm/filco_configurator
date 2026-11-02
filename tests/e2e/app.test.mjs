@@ -426,13 +426,12 @@ describe("tap-hold per layer (keyboard runs a build with layer_tap_hold)", () =>
     assert.match(await (await byTest(browser, "save")).getText(), /Save 2 changes/);
   });
 
-  it("the Firmware page shows tap-hold per layer as on", async () => {
+  it("the Firmware page edits Fn + key and default codes only", async () => {
     const { browser } = app;
     await click(browser, "fw-tab");
     await click(browser, "fwkey-Caps");
-    assert.match(await (await byTest(browser, "fw-sec-taphold")).getText(), /per layer/);
-    await click(browser, "fw-sec-taphold");
-    assert.equal(await attr(browser, '[data-testid="fw-lt-on"]', "aria-pressed"), "true");
+    assert.equal(await attr(browser, '[data-testid="fw-sec-fn"]', "aria-selected"), "true");
+    assert.equal(await (await byTest(browser, "fw-sec-taphold")).isExisting(), false);
     await click(browser, "layer-0");
     await click(browser, "revert");
     await waitIdle(browser);

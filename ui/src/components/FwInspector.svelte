@@ -4,7 +4,6 @@
     FwCodeView,
     FwEditInput,
     FwKeyView,
-    FwTapHoldView,
     FwView,
     KeyView,
   } from "../bindings/ipc";
@@ -25,14 +24,10 @@
   }
   let { fw, keyView, key, catalog, lang, disabled, t, onedit }: Props = $props();
 
-  type Section = "taphold" | "fn" | "default";
+  type Section = "fn" | "default";
   let section = $state<Section>("fn");
-  /** Which tap-hold field the picker fills. */
-  let field = $state<"tap" | "hold">("tap");
   let query = $state("");
-  let term = $state(200);
 
-  const LCTRL = 0xe0;
   const GROUPS = [
     "letter",
     "digit",
@@ -53,24 +48,18 @@
     const i = key?.index ?? -1;
     if (i === lastIndex) return;
     lastIndex = i;
-    section = key?.tap_hold ? "taphold" : "fn";
-    field = "tap";
-    term = key?.tap_hold?.term_ms ?? 200;
+    section = "fn";
     query = "";
   });
 
-  // Scroll the code the key holds into the middle of the panel: for another key, section or tap-hold field.
-  // A derived index, so an edit (a new `key` object for the same key) does not scroll again.
+  // Scroll the code the key holds into the middle of the panel: for another key or section. A derived index, so
+  // an edit (a new `key` object for the same key) does not scroll again.
   let panel = $state<HTMLElement>();
   const keyIndex = $derived(key?.index ?? -1);
   $effect(() => {
     void keyIndex;
     void section;
-    void field;
     void tick().then(() => centerCurrent(panel));
-  });
-  $effect(() => {
-    if (key?.tap_hold) term = key.tap_hold.term_ms;
   });
 
   const specials = $derived(lang === "en" ? catalog.fw_special_en : catalog.fw_special);
@@ -85,9 +74,8 @@
       specials.some((s) => !query.trim() || s.name.toLowerCase().includes(query.trim().toLowerCase())),
   );
 
+  /** Tap-hold the firmware on the keyboard holds itself (an older build): shown, not edited here. */
   const th = $derived(key?.tap_hold ?? null);
-  const kind = $derived(th ? th.hold.type : "none");
-  const termMax = $derived(kind === "layer" ? 2000 : 255);
 
   function hex(n: number): string {
     return n.toString(16).padStart(2, "0");
@@ -97,38 +85,16 @@
     return c ? c.legend || c.name : t("fw_removed");
   }
 
-  function setTapHold(v: FwTapHoldView | null) {
-    if (!key) return;
-    onedit({ type: "set_tap_hold", key: key.index, tap_hold: v });
-  }
-
-  function setKind(k: "none" | "key" | "layer") {
-    if (!key || k === kind) return;
-    if (k === "none") return setTapHold(null);
-    const tap = th?.tap ?? key.default.code;
-    setTapHold(
-      k === "key"
-        ? { tap, hold: { type: "key", code: LCTRL }, term_ms: Math.min(term, 255) }
-        : { tap, hold: { type: "layer", layer: 2 }, term_ms: th ? Math.max(term, 50) : 300 },
-    );
-  }
-
   function pick(code: number) {
     if (!key || disabled) return;
     if (section === "fn") onedit({ type: "set_fn", key: key.index, code });
-    else if (section === "default") onedit({ type: "set_default", key: key.index, code });
-    else if (th) {
-      if (field === "tap") setTapHold({ ...th, tap: code });
-      else setTapHold({ ...th, hold: { type: "key", code } });
-    }
+    else onedit({ type: "set_default", key: key.index, code });
   }
 
   function current(code: number): boolean {
     if (!key) return false;
     if (section === "fn") return key.fn_code?.code === code;
-    if (section === "default") return key.default.code === code;
-    if (!th) return false;
-    return field === "tap" ? th.tap === code : th.hold.type === "key" && th.hold.code === code;
+    return key.default.code === code;
   }
 
   function legendOf(code: number): string {
@@ -137,12 +103,7 @@
   }
 
   const lockedFn = $derived(key?.fn_locked ?? null);
-  const lockedTh = $derived(key?.tap_hold_locked ?? null);
-  const pickerOff = $derived(
-    disabled ||
-      (section === "fn" && !!lockedFn) ||
-      (section === "taphold" && (!th || (field === "hold" && th.hold.type === "layer"))),
-  );
+  const pickerOff = $derived(disabled || (section === "fn" && !!lockedFn));
 
   const summary = $derived.by(() => {
     if (!key) return "";
@@ -180,17 +141,8 @@
     </header>
     <div class="body">
       <div class="tabs" role="tablist" aria-orientation="vertical">
-        {#each [["taphold", "fw_sec_taphold"], ["fn", "fw_sec_fn"], ["default", "fw_sec_default"]] as const as [id, label] (id)}
-          {@const value =
-            id === "taphold"
-              ? fw.layer_tap_hold
-                ? t("fw_lt_short")
-                : th
-                  ? `${legendOf(th.tap)} / ${th.hold.type === "layer" ? `L${th.hold.layer + 1}` : legendOf(th.hold.code)}`
-                  : t("fw_none")
-              : id === "fn"
-                ? codeText(key.fn_code)
-                : codeText(key.default)}
+        {#each [["fn", "fw_sec_fn"], ["default", "fw_sec_default"]] as const as [id, label] (id)}
+          {@const value = id === "fn" ? codeText(key.fn_code) : codeText(key.default)}
           <button
             role="tab"
             class="tab"
@@ -203,94 +155,7 @@
       </div>
 
       <div class="panel" role="tabpanel" bind:this={panel}>
-        {#if section === "taphold"}
-          <div class="row">
-            <span class="label wide">{t("fw_lt_title")}</span>
-            <span class="seg">
-              {#each [[false, "fw_lt_off"], [true, "fw_lt_on"]] as const as [on, label] (label)}
-                <button
-                  aria-pressed={fw.layer_tap_hold === on}
-                  {disabled}
-                  onclick={() => fw.layer_tap_hold !== on && onedit({ type: "set_layer_tap_hold", on })}
-                  data-testid={`fw-lt-${on ? "on" : "off"}`}>{t(label)}</button
-                >
-              {/each}
-            </span>
-            <span class="hint small">{t("fw_lt_note")}</span>
-          </div>
-          {#if lockedTh === "layer_tap"}
-            <!-- The switch above says where tap-hold is set now. -->
-          {:else if lockedTh && !th}
-            <p class="note warn small">{t(`fw_th_locked_${lockedTh}` as Key)}</p>
-          {:else}
-            <div class="row">
-              <span class="label">{t("fw_th_kind")}</span>
-              <span class="seg">
-                {#each [["none", "fw_th_off"], ["key", "fw_th_key"], ["layer", "fw_th_layer"]] as const as [k, label] (k)}
-                  <button
-                    aria-pressed={kind === k}
-                    {disabled}
-                    onclick={() => setKind(k)}
-                    data-testid={`fw-th-${k}`}>{t(label)}</button
-                  >
-                {/each}
-              </span>
-              <span class="quota small">{t("fw_th_quota", { k: fw.tap_key_used, l: fw.tap_layer_used })}</span
-              >
-            </div>
-            {#if th}
-              <div class="row">
-                <span class="label">{t("fw_th_tap")}</span>
-                <button class="chip" aria-pressed={field === "tap"} onclick={() => (field = "tap")}
-                  >{legendOf(th.tap)}</button
-                >
-                <span class="label inline">{t("fw_th_hold")}</span>
-                {#if th.hold.type === "layer"}
-                  {#each [0, 1, 2, 3] as l (l)}
-                    <button
-                      class="chip"
-                      aria-pressed={th.hold.type === "layer" && th.hold.layer === l}
-                      {disabled}
-                      onclick={() => setTapHold({ ...th, hold: { type: "layer", layer: l } })}
-                      >L{l + 1}</button
-                    >
-                  {/each}
-                {:else}
-                  <button class="chip" aria-pressed={field === "hold"} onclick={() => (field = "hold")}
-                    >{legendOf(th.hold.code)}</button
-                  >
-                  <span class="hint small">{t("fw_th_pick")}</span>
-                {/if}
-              </div>
-              <div class="row">
-                <span class="label">{t("fw_th_term")}</span>
-                <input
-                  class="slider"
-                  type="range"
-                  min="50"
-                  max={termMax}
-                  step={kind === "layer" ? 10 : 5}
-                  bind:value={term}
-                  onchange={() => setTapHold({ ...th, term_ms: term })}
-                  {disabled}
-                  aria-label={t("fw_th_term")}
-                />
-                <input
-                  class="num"
-                  type="number"
-                  min="50"
-                  max={termMax}
-                  bind:value={term}
-                  onchange={() => setTapHold({ ...th, term_ms: term })}
-                  {disabled}
-                  data-testid="fw-th-term"
-                />
-                <span>ms</span>
-                <span class="hint small">{t(kind === "layer" ? "fw_th_term_layer" : "fw_th_term_key")}</span>
-              </div>
-            {/if}
-          {/if}
-        {:else if section === "fn"}
+        {#if section === "fn"}
           <div class="row">
             <span class="label">{t("fw_fn_of", { key: keyView.legend })}</span>
             <span class="chip static">
@@ -318,52 +183,50 @@
           </div>
         {/if}
 
-        {#if !(section === "taphold" && (!th || (th.hold.type === "layer" && field === "hold")))}
-          <div class="row">
-            <input
-              type="search"
-              placeholder={t("search")}
-              bind:value={query}
-              aria-label={t("search")}
-              data-testid="fw-search"
-            />
+        <div class="row">
+          <input
+            type="search"
+            placeholder={t("search")}
+            bind:value={query}
+            aria-label={t("search")}
+            data-testid="fw-search"
+          />
+        </div>
+        {#if showSpecials}
+          <h3 class="small muted">{t("fw_group_special")}</h3>
+          <div class="grid">
+            {#each specials as s (s.code)}
+              <button
+                class="cap"
+                class:current={current(s.code)}
+                title={`${s.name} (0x${hex(s.code)})`}
+                disabled={pickerOff}
+                onclick={() => pick(s.code)}
+                data-testid={`fw-code-${hex(s.code)}`}
+                ><svg viewBox="-10 -8 20 16" class="icon big"><FwIcon name={s.icon ?? ""} /></svg></button
+              >
+            {/each}
           </div>
-          {#if showSpecials}
-            <h3 class="small muted">{t("fw_group_special")}</h3>
+        {/if}
+        {#each GROUPS as g (g)}
+          {@const items = filtered.filter((u) => u.group === g)}
+          {#if items.length}
+            <h3 class="small muted">{t(`group_${g}`)}</h3>
             <div class="grid">
-              {#each specials as s (s.code)}
+              {#each items as u (u.code)}
                 <button
                   class="cap"
-                  class:current={current(s.code)}
-                  title={`${s.name} (0x${hex(s.code)})`}
+                  class:current={current(u.code)}
+                  title={`${u.name} (0x${hex(u.code)})`}
                   disabled={pickerOff}
-                  onclick={() => pick(s.code)}
-                  data-testid={`fw-code-${hex(s.code)}`}
-                  ><svg viewBox="-10 -8 20 16" class="icon big"><FwIcon name={s.icon ?? ""} /></svg></button
+                  onclick={() => pick(u.code)}
+                  data-testid={`fw-code-${hex(u.code)}`}
+                  >{#if u.shifted}<span class="shift">{u.shifted}</span>{/if}<span>{u.legend}</span></button
                 >
               {/each}
             </div>
           {/if}
-          {#each GROUPS as g (g)}
-            {@const items = filtered.filter((u) => u.group === g)}
-            {#if items.length}
-              <h3 class="small muted">{t(`group_${g}`)}</h3>
-              <div class="grid">
-                {#each items as u (u.code)}
-                  <button
-                    class="cap"
-                    class:current={current(u.code)}
-                    title={`${u.name} (0x${hex(u.code)})`}
-                    disabled={pickerOff}
-                    onclick={() => pick(u.code)}
-                    data-testid={`fw-code-${hex(u.code)}`}
-                    >{#if u.shifted}<span class="shift">{u.shifted}</span>{/if}<span>{u.legend}</span></button
-                  >
-                {/each}
-              </div>
-            {/if}
-          {/each}
-        {/if}
+        {/each}
       </div>
     </div>
   {/if}
@@ -455,29 +318,6 @@
     font: 500 13.5px var(--font-key);
     opacity: 0.75;
   }
-  .label.wide {
-    width: auto;
-    white-space: nowrap;
-  }
-  .label.inline {
-    width: auto;
-    margin-left: 14px;
-  }
-  .seg {
-    display: inline-flex;
-  }
-  .seg button {
-    border-radius: 0;
-  }
-  .seg button:first-child {
-    border-radius: 6px 0 0 6px;
-  }
-  .seg button:last-child {
-    border-radius: 0 6px 6px 0;
-  }
-  .seg button + button {
-    margin-left: -1px;
-  }
   .quota {
     margin-left: 6px;
   }
@@ -508,14 +348,6 @@
   }
   .icon.big {
     width: 40px;
-    height: 32px;
-  }
-  .slider {
-    width: 260px;
-    accent-color: var(--acc);
-  }
-  .num {
-    width: 76px;
     height: 32px;
   }
   .note {

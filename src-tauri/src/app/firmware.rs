@@ -179,17 +179,6 @@ fn tap_hold_view(t: TapHold) -> FwTapHoldView {
     }
 }
 
-fn tap_hold_of(v: &FwTapHoldView) -> TapHold {
-    TapHold {
-        tap: v.tap,
-        hold: match v.hold {
-            FwHoldView::Key { code } => Hold::Key(code),
-            FwHoldView::Layer { layer } => Hold::Layer(layer),
-        },
-        term_ms: v.term_ms,
-    }
-}
-
 fn key_view(k: &FwKey, lang: UiLang) -> FwKeyView {
     let code = |c: u8| FwCodeView::new(c, lang);
     let (tap_label, hold_label) = match k.tap_hold {
@@ -216,7 +205,6 @@ fn key_view(k: &FwKey, lang: UiLang) -> FwKeyView {
         changed: k.changed(),
         custom: k.custom(),
         fn_locked: k.fn_locked.map(str::to_owned),
-        tap_hold_locked: k.tap_hold_locked.map(str::to_owned),
     }
 }
 
@@ -298,10 +286,6 @@ impl App {
         let e = match *edit {
             FwEditInput::SetFn { key, code } => FwEdit::SetFn { key, code },
             FwEditInput::SetDefault { key, code } => FwEdit::SetDefault { key, code },
-            FwEditInput::SetTapHold { key, ref tap_hold } => FwEdit::SetTapHold {
-                key,
-                tap_hold: tap_hold.as_ref().map(tap_hold_of),
-            },
             FwEditInput::KeyToBase { key } => FwEdit::KeyToBase { key },
             FwEditInput::KeyToStock { key } => FwEdit::KeyToStock { key },
             FwEditInput::SetLayerTapHold { on } => FwEdit::SetLayerTapHold(on),
@@ -584,8 +568,6 @@ impl App {
                 can_redo: false,
                 fn_slots_used: 0,
                 fn_slots: 39,
-                tap_key_used: 0,
-                tap_layer_used: 0,
                 layer_tap_hold: false,
                 fn_key: 0,
                 suggested_name: String::new(),
@@ -660,8 +642,6 @@ impl App {
             can_redo: d.can_redo(),
             fn_slots_used: u32::try_from(d.fn_slots_used()).unwrap_or(0),
             fn_slots: u32::from(filco_firmware::v72::FN_ENTRIES),
-            tap_key_used: u32::from(w.tap_key.is_some()),
-            tap_layer_used: u32::try_from(w.tap_layers.len()).unwrap_or(0),
             layer_tap_hold,
             fn_key,
             suggested_name: self.suggested_name(d),
