@@ -101,6 +101,8 @@ describe("visual baselines", () => {
       await click(browser, "key-M1");
       await click(browser, "usage-68");
       await waitIdle(browser);
+      // The mapping moved the selection on to M6; show the edited key.
+      await click(browser, "key-M1");
       await check(browser, "edited-light");
       await click(browser, "save");
       await (await byTest(browser, "diff-dialog")).waitForDisplayed({ timeout: 10000 });

@@ -78,6 +78,8 @@ async function run(theme) {
     await click(browser, "tab-media");
     await (await browser.$("button=Mute")).click();
     await waitIdle(browser);
+    // The mapping moved the selection on to "["; show the edited key.
+    await click(browser, "key-P");
     await shot(browser, theme, "07-edited");
     // Diff dialog.
     await click(browser, "save");

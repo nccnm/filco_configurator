@@ -29,16 +29,22 @@ class Store {
 
   t = (key: Key, vars: Record<string, string | number> = {}): string => translate(this.lang, key, vars);
 
-  /** Runs a command that returns a snapshot; one at a time. */
-  async run(kind: Exclude<Busy, null>, f: () => Promise<Snapshot>): Promise<void> {
-    if (this.busy) return;
+  /**
+   * Runs a command that returns a snapshot; one at a time. True when it ran and its snapshot reports no error
+   * (false when another command was running).
+   */
+  async run(kind: Exclude<Busy, null>, f: () => Promise<Snapshot>): Promise<boolean> {
+    if (this.busy) return false;
     this.busy = kind;
     this.progress = null;
     try {
-      await this.apply(await f());
+      const s = await f();
+      await this.apply(s);
       this.ipcError = null;
+      return s.error === null;
     } catch (e) {
       this.ipcError = String(e);
+      return false;
     } finally {
       this.busy = null;
       this.progress = null;

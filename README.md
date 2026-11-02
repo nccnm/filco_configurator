@@ -33,7 +33,10 @@ Cần WebView2 Runtime (có sẵn trên Windows 11; bộ cài tự tải nếu t
    thể ghi đè layer; khi nó chạy, ứng dụng không đọc và không ghi.
 2. Mở ứng dụng: nó tự tìm bàn phím và đọc 4 layer (khoảng 0,75 giây). Đọc không thay đổi gì trên bàn phím.
 3. Chọn layer (tab hoặc phím 1-4), bấm một phím trên hình (hoặc đi bằng mũi tên), chọn hành động ở bảng dưới. "Áp cho"
-   gán cùng hành động cho nhiều layer một lần. Delete đưa ô về mặc định. Ctrl+Z / Ctrl+Y hoàn tác / làm lại.
+   gán cùng hành động cho nhiều layer một lần. Gán xong, ứng dụng tự chọn phím kế tiếp: sang phải trong hàng, hết
+   hàng thì xuống đầu hàng dưới, hết hàng cuối thì về đầu hàng trên cùng (bỏ qua phím tap-hold, vì ô layer của nó bị
+   khóa). Đưa về mặc định hay gán bị từ chối thì vẫn ở phím cũ. Delete đưa ô về mặc định. Ctrl+Z / Ctrl+Y hoàn tác /
+   làm lại.
    Bảng dưới tự mở đúng thẻ cho thứ phím đang giữ (Phím, Modifier, Media, Chuột, Hệ thống, Nâng cao), bật modifier đi
    kèm, và cuộn để nút đang gán nằm giữa; focus vẫn ở bàn phím trên hình. Trang Firmware làm tương tự với bảng chọn mã.
 4. Bấm **Lưu N thay đổi** (Ctrl+S): ứng dụng đọc lại bàn phím, so với lúc bắt đầu sửa, sao lưu, rồi hiện bảng khác

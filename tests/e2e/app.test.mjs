@@ -41,6 +41,15 @@ async function report(browser) {
 const attr = (browser, sel, name) =>
   browser.execute((s, n) => document.querySelector(s)?.getAttribute(n) ?? null, sel, name);
 
+/** Waits until the key with this id is the selected one. */
+async function waitSelected(browser, key) {
+  const el = await byTest(browser, `key-${key}`);
+  await el.waitUntil(async () => (await el.getAttribute("aria-pressed")) === "true", {
+    timeout: 5000,
+    timeoutMsg: `${key} was not selected`,
+  });
+}
+
 describe("keyboard layer editor (simulated keyboard)", () => {
   let app;
   before(async () => {
@@ -170,6 +179,8 @@ describe("keyboard layer editor (simulated keyboard)", () => {
     const before = await select(browser, 2, "M1");
     await click(browser, "usage-68"); // F13
     await waitIdle(browser);
+    await waitSelected(browser, "M6");
+    await click(browser, "key-M1");
     assert.equal(await (await byTest(browser, "slot-hex")).getText(), "02 00 68 00");
     assert.match(await (await byTest(browser, "save")).getText(), /Save 1 changes/);
     await browser.keys(["Control", "z"]);
@@ -183,6 +194,29 @@ describe("keyboard layer editor (simulated keyboard)", () => {
     assert.equal(await (await byTest(browser, "slot-hex")).getText(), before);
   });
 
+  it("selects the next key after a mapping: along the row, down a row, back to the top", async () => {
+    const { browser } = app;
+    await select(browser, 2, "Q");
+    await click(browser, "usage-68");
+    await waitSelected(browser, "W");
+    // The last key of a row goes on to the first key of the next row; the last row to the top row.
+    await click(browser, "key-Bksp");
+    await click(browser, "usage-69");
+    await waitSelected(browser, "Tab");
+    await click(browser, "key-RCtrl");
+    await click(browser, "usage-6a");
+    await waitSelected(browser, "Esc");
+    assert.match(await (await byTest(browser, "save")).getText(), /Save 3 changes/);
+    // Resetting a key to its default is not a mapping: the key stays selected.
+    await click(browser, "key-Q");
+    await click(browser, "clear-slot");
+    await waitIdle(browser);
+    assert.equal(await attr(browser, '[data-testid="key-Q"]', "aria-pressed"), "true");
+    await click(browser, "revert");
+    await waitIdle(browser);
+    await click(browser, "layer-0");
+  });
+
   it("rejects bytes the editor does not write (macro)", async () => {
     const { browser } = app;
     await select(browser, 0, "Q");
@@ -192,6 +226,8 @@ describe("keyboard layer editor (simulated keyboard)", () => {
     await click(browser, "raw-assign");
     await waitIdle(browser);
     assert.equal(await attr(browser, '[data-testid="error-banner"]', "data-code"), "edit_invalid");
+    // A refused edit keeps the key selected.
+    assert.equal(await attr(browser, '[data-testid="key-Q"]', "aria-pressed"), "true");
     await click(browser, "tab-key");
   });
 
@@ -334,6 +370,18 @@ describe("firmware mode (simulated keyboard, real build pipeline)", () => {
 
   const text = async (browser, id) => (await byTest(browser, id)).getText();
   const attr = async (browser, id, name) => (await byTest(browser, id)).getAttribute(name);
+
+  it("the next key after a mapping passes over tap-hold keys", async () => {
+    const { browser } = app;
+    await click(browser, "layer-0");
+    await click(browser, "key-\\\\"); // "\\", the last key of its row; Caps below it is a tap-hold key
+    await click(browser, "usage-68");
+    await waitIdle(browser);
+    await waitSelected(browser, "A");
+    assert.match(await attr(browser, "key-Caps", "class"), /taphold/);
+    await click(browser, "revert");
+    await waitIdle(browser);
+  });
 
   it("shows the firmware on the keyboard and its Fn layer", async () => {
     const { browser } = app;

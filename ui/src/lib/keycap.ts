@@ -78,3 +78,24 @@ export function neighbour(keys: readonly KeyView[], from: KeyView, dir: Directio
   }
   return best;
 }
+
+/**
+ * The key after `from` in reading order: the next key to the right in the same row, else the first key of the row
+ * below, wrapping from the last row to the first. Keys for which `skip` is true are passed over; `from` itself when
+ * every other key is skipped.
+ */
+export function nextKey(
+  keys: readonly KeyView[],
+  from: KeyView,
+  skip: (k: KeyView) => boolean = () => false,
+): KeyView {
+  // Rows by key centre, so a taller key would sit in the row of its middle.
+  const row = (k: KeyView) => Math.round(k.y + k.h / 2 - 0.5);
+  const order = [...keys].sort((a, b) => row(a) - row(b) || a.x - b.x);
+  const start = order.indexOf(from);
+  for (let n = 1; n < order.length; n++) {
+    const k = order[(start + n) % order.length];
+    if (k && !skip(k)) return k;
+  }
+  return from;
+}

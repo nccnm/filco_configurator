@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { KeyView } from "../bindings/ipc";
-import { fit, geometry, lineYs, neighbour, viewBox } from "./keycap";
+import { fit, geometry, lineYs, neighbour, nextKey, viewBox } from "./keycap";
 
 const key = (id: string, x: number, y: number, w = 1): KeyView => ({
   id,
@@ -64,5 +64,27 @@ describe("neighbour", () => {
   it("moves between rows to the nearest key", () => {
     expect(neighbour(keys, one, "down").id).toBe("Q");
     expect(neighbour(keys, w, "up").id).toBe("2");
+  });
+});
+
+describe("nextKey", () => {
+  const esc = key("Esc", 0, 0);
+  const one = key("1", 1, 0);
+  const tab = key("Tab", 0, 1, 1.5);
+  const q = key("Q", 1.5, 1);
+  // Model order is not reading order (the M10SP lists M1 between 6 and 7).
+  const keys = [one, q, esc, tab];
+
+  it("moves right in the row, then to the start of the next row, then back to the top", () => {
+    expect(nextKey(keys, esc).id).toBe("1");
+    expect(nextKey(keys, one).id).toBe("Tab");
+    expect(nextKey(keys, tab).id).toBe("Q");
+    expect(nextKey(keys, q).id).toBe("Esc");
+  });
+
+  it("passes over skipped keys and stays put when every other key is skipped", () => {
+    expect(nextKey(keys, esc, (k) => k.id === "1").id).toBe("Tab");
+    expect(nextKey(keys, q, (k) => k.id === "Esc").id).toBe("1");
+    expect(nextKey(keys, esc, () => true).id).toBe("Esc");
   });
 });

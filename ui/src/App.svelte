@@ -15,6 +15,7 @@
   import Progress from "./components/Progress.svelte";
   import ReportDialog from "./components/ReportDialog.svelte";
   import { hasKey, PRODUCT_NAME, systemLang } from "./lib/i18n";
+  import { nextKey } from "./lib/keycap";
   import { ipc, onDevicesChanged, onFwBuild, onProgress } from "./lib/ipc";
   import { applyTheme, store, type Theme } from "./lib/store.svelte";
 
@@ -60,10 +61,17 @@
     return hasKey(key) ? t(key) : t("err_unknown");
   }
 
-  function assign(layers: number[], action: Action) {
-    if (!selKey) return;
-    const index = selKey.index;
-    void store.run("edit", () => ipc.assign(layers, index, action));
+  /**
+   * Gives the selected key an action. Once it is taken, a mapping (not a reset to the default) selects the next
+   * key in reading order, skipping tap-hold keys whose slot cannot be assigned, so a row is mapped key after key.
+   */
+  async function assign(layers: number[], action: Action) {
+    if (!selKey || !model) return;
+    const from = selKey;
+    const ok = await store.run("edit", () => ipc.assign(layers, from.index, action));
+    if (!ok || action.type === "empty" || store.selected !== model.keys.indexOf(from)) return;
+    const tapHolds = new Set(snap?.firmware?.tap_holds.map((th) => th.index) ?? []);
+    store.selected = model.keys.indexOf(nextKey(model.keys, from, (k) => tapHolds.has(k.index)));
   }
 
   function fwEdit(edit: FwEditInput) {
@@ -141,7 +149,7 @@
         store.mode = "layers";
       }
     } else if (e.key === "Delete" && !inField(e) && !fwMode && selKey && selSlot?.kind !== "empty") {
-      assign([store.layer], { type: "empty" });
+      void assign([store.layer], { type: "empty" });
     } else if (e.key === "Escape" && !inField(e)) {
       store.selected = null;
     }

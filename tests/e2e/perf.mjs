@@ -140,21 +140,22 @@ async function interaction() {
       );
     const select = await measure('[data-testid^="key-"]', "aria-pressed");
     const layers = await measure('[data-testid^="layer-"]', "aria-selected");
-    // Assign an action and wait until the key shows it (IPC to Rust, new snapshot, redraw): 100 times.
+    // Assign an action and wait until it is redrawn and the next key (M6) is selected: 100 times, each from M1.
     await click(browser, "layer-2");
-    await click(browser, "key-M1");
     const assign = await browser.execute(async () => {
-      const hex = () => document.querySelector('[data-testid="slot-hex"]')?.textContent;
+      const key = (id) => document.querySelector(`[data-testid="key-${id}"]`);
+      const pressed = (id) => key(id)?.getAttribute("aria-pressed") === "true";
       const app = document.querySelector('[data-testid="app"]');
+      const frame = () => new Promise((r) => requestAnimationFrame(() => r(undefined)));
+      const click = (el) => el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       const times = [];
       for (let i = 0; i < 100; i++) {
-        const code = i % 2 ? "68" : "69";
-        const button = document.querySelector(`[data-testid="usage-${code}"]`);
+        click(key("M1"));
+        while (!pressed("M1")) await frame();
+        const button = document.querySelector(`[data-testid="usage-${i % 2 ? "68" : "69"}"]`);
         const t = performance.now();
-        button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        while (hex() !== `02 00 ${code} 00` || app.getAttribute("data-busy") !== "") {
-          await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-        }
+        click(button);
+        while (!pressed("M6") || app.getAttribute("data-busy") !== "") await frame();
         times.push(performance.now() - t);
       }
       return times;
