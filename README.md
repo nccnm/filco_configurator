@@ -1,177 +1,192 @@
 # filco keyboard keymap
 
-Trình chỉnh layer **không chính thức** cho bàn phím FILCO dùng FILCO Assist, kiểu VIA: chọn layer, bấm phím trên
-hình, chọn hành động (phím, tổ hợp modifier, media, chuột, lệnh hệ thống), xem khác biệt, ghi xuống bàn phím. Viết bằng
-Rust + Tauri 2 + Svelte 5, chạy trên Windows 10/11. Không liên quan và không được Diatec / FILCO bảo trợ.
+[![CI](https://github.com/nccnm/filco_configurator/actions/workflows/ci.yml/badge.svg)](https://github.com/nccnm/filco_configurator/actions/workflows/ci.yml)
 
-*English summary: an unofficial, VIA-like layer editor for FILCO keyboards configured by FILCO Assist (currently the
-Majestouch Xacro M10SP US). Every write shows a diff, needs a confirmation, is backed up first and read back byte for
-byte. Windows only.*
+English | [Tiếng Việt](README.vi.md)
 
-Model hiện có: **Majestouch Xacro M10SP US** (VID 0x2EFD, PID 0x1972), mức `experimental`: đọc, ghi layer và nạp
-firmware đã chạy thành công trên một bàn phím thật của tác giả, chưa thử trên máy khác.
+An **unofficial**, VIA-like layer editor for FILCO keyboards configured by FILCO Assist: pick a layer, click a key on the
+picture, choose an action (key, modifier combination, media, mouse, system command), review the differences, and write
+them to the keyboard. Built with Rust, Tauri 2 and Svelte 5, for Windows 10/11. Not affiliated with or endorsed by
+Diatec / FILCO.
 
-## Cài đặt
+Supported model: **Majestouch Xacro M10SP US** (VID 0x2EFD, PID 0x1972), at the `experimental` level: reading, writing
+layers and flashing firmware have run successfully on one real keyboard, the author's, and have not been tried on other
+machines.
 
-1. Tải `filco.keyboard.keymap_<phiên bản>_x64-setup.exe` và file `.sha256` đi kèm từ
+**[Download the installer](https://github.com/nccnm/filco_configurator/releases)**
+
+## Install
+
+1. Download `filco.keyboard.keymap_<version>_x64-setup.exe` and the `.sha256` file next to it from
    [GitHub Releases](https://github.com/nccnm/filco_configurator/releases).
-2. Kiểm mã băm trong PowerShell, hai chuỗi phải giống nhau:
+2. Compare the hash in PowerShell, the two strings must match:
 
    ```powershell
    (Get-FileHash '.\filco.keyboard.keymap_0.1.0_x64-setup.exe' -Algorithm SHA256).Hash.ToLower()
    Get-Content '.\filco.keyboard.keymap_0.1.0_x64-setup.exe.sha256'
    ```
 
-3. Chạy bộ cài. Bộ cài **chưa ký số**, nên Windows SmartScreen có thể báo "Windows protected your PC": bấm *More info*
-   rồi *Run anyway* (chỉ làm vậy khi mã băm đã khớp). Bộ cài cài cho người dùng hiện tại, không cần quyền admin, vào
-   `%LOCALAPPDATA%\filco keyboard keymap`; gỡ trong *Settings > Apps*.
+3. Run the installer. It is **not code signed**, so Windows SmartScreen may show "Windows protected your PC": choose
+   *More info*, then *Run anyway* (only when the hash matches). It installs for the current user, without admin rights,
+   into `%LOCALAPPDATA%\filco keyboard keymap`; uninstall it from *Settings > Apps*.
 
-Cần WebView2 Runtime (có sẵn trên Windows 11; bộ cài tự tải nếu thiếu).
+Needs the WebView2 Runtime (included in Windows 11; the installer downloads it if missing).
 
-## Dùng
+## Use
 
-1. **Thoát FILCO Assist** (chuột phải biểu tượng ở khay hệ thống, *Exit*). FILCO Assist dùng cùng cổng cấu hình và có
-   thể ghi đè layer; khi nó chạy, ứng dụng không đọc và không ghi.
-2. Mở ứng dụng: nó tự tìm bàn phím và đọc 4 layer (khoảng 0,75 giây). Đọc không thay đổi gì trên bàn phím.
-3. Chọn layer (tab hoặc phím 1-4), bấm một phím trên hình (hoặc đi bằng mũi tên), chọn hành động ở bảng dưới. "Áp cho"
-   gán cùng hành động cho nhiều layer một lần. Gán xong, ứng dụng tự chọn phím kế tiếp: sang phải trong hàng, hết
-   hàng thì xuống đầu hàng dưới, hết hàng cuối thì về đầu hàng trên cùng. Đưa về mặc định, gán tap-hold hay gán bị
-   từ chối thì vẫn ở phím cũ. Delete đưa ô về mặc định.
-   Ctrl+Z / Ctrl+Y hoàn tác / làm lại.
-   Bảng dưới tự mở đúng thẻ cho thứ phím đang giữ (Phím, Modifier, Tap-hold, Media, Chuột, Hệ thống, Nâng cao), bật
-   modifier đi kèm, và cuộn để nút đang gán nằm giữa; focus vẫn ở bàn phím trên hình. Trang Firmware làm tương tự với bảng chọn mã.
-4. Bấm **Lưu N thay đổi** (Ctrl+S): ứng dụng đọc lại bàn phím, so với lúc bắt đầu sửa, sao lưu, rồi hiện bảng khác
-   biệt từng ô (layer, phím, đang có, sẽ ghi, byte). Chỉ khi bấm **Ghi xuống bàn phím** mới ghi; nút Hủy có sẵn focus.
-5. Mỗi layer ghi xong được đọc lại và so đủ 512 byte. Lỗi giữa chừng thì ứng dụng đưa mọi layer đã ghi về bản sao lưu
-   và báo từng layer đang ở trạng thái nào.
+1. **Quit FILCO Assist** (right-click its tray icon, *Exit*). FILCO Assist uses the same configuration port and can
+   overwrite layers; while it runs, the app neither reads nor writes.
+2. Open the app: it finds the keyboard and reads the 4 layers (about 0.75 seconds). Reading changes nothing on the
+   keyboard.
+3. Choose a layer (tabs or keys 1-4), click a key on the picture (or move with the arrow keys), and choose an action in
+   the panel below. "Apply to" assigns the same action to several layers at once. After an assignment the app selects
+   the next key: to the right along the row, then the start of the row below, and from the last row back to the top
+   row. Resetting to default, setting tap-hold or a refused assignment stays on the same key. Delete resets the slot to
+   default. Ctrl+Z / Ctrl+Y undo and redo.
+   The panel opens the right tab for what the key holds (Key, Modifier, Tap-hold, Media, Mouse, System, Advanced), turns
+   on the modifiers that go with it, and scrolls so that the current button is in the middle; focus stays on the keyboard
+   picture. The Firmware page does the same with its code picker.
+4. Press **Save N changes** (Ctrl+S): the app reads the keyboard again, compares it with how it was when editing began,
+   makes a backup, then shows a slot-by-slot table of differences (layer, key, now, will be, bytes). Nothing is written
+   until you press **Write to keyboard**; the Cancel button has focus by default.
+5. Each written layer is read back and compared across all 512 bytes. On an error part way, the app returns every
+   written layer to the backup and reports the state of each layer.
 
-Phím trên hình: viền màu layer là ô đã gán (khác ô trống), chấm màu ở góc là thay đổi chưa ghi, chữ mờ là ô trống
-(phím làm theo keymap mặc định của firmware), viền nét đứt là ô loại ứng dụng chưa sửa được (macro...), giữ nguyên.
+On the keyboard picture: a border in the layer colour is an assigned slot (not empty), a coloured dot in the corner is an
+unwritten change, faint text is an empty slot (the key follows the firmware's default keymap), and a dashed border is a
+slot type the app cannot edit yet (macros and so on), which is kept as it is.
 
-### Sao lưu, khôi phục, xuất / nhập
+### Backup, restore, export and import
 
-- Trước mỗi lần ghi có một bản sao lưu tự động trong `%LOCALAPPDATA%\FilcoConfigurator\backups\<model>\<thời gian>\`,
-  cùng định dạng thư mục với `fnmap.py` (`layer0.bin`...`layer3.bin` + `manifest.json` có SHA-256 từng layer).
-- Menu **Thêm**: sao lưu ngay, khôi phục từ bản sao lưu (nạp vào trình sửa; ghi vẫn qua bảng khác biệt), mở thư mục
-  sao lưu, mở một thư mục sao lưu khác (ví dụ của `fnmap.py`), nhập / xuất file `.filco-layers.json`, chép cả layer
-  sang layer khác, giao diện sáng / tối, tiếng Việt / tiếng Anh.
+- Before each write an automatic backup goes to `%LOCALAPPDATA%\FilcoConfigurator\backups\<model>\<time>\`, in the same
+  folder format as `fnmap.py` (`layer0.bin`...`layer3.bin` and a `manifest.json` with the SHA-256 of each layer).
+- The **More** menu: back up now, restore from a backup (loaded into the editor; writing still goes through the
+  differences table), open the backup folder, open another backup folder (for example one from `fnmap.py`), import or
+  export a `.filco-layers.json` file, copy a whole layer to another layer, light or dark theme, Vietnamese or English.
 
-### An toàn
+### Safety
 
-- Ứng dụng không tự nạp firmware; không gửi lệnh nào ngoài đọc trang (0x10), đọc khối thông tin firmware (0x30), ghi
-  trang (0x11) và kết thúc (0x02). Tầng truyền chặn ở mức code mọi gói ghi khi không ở trong luồng ghi đã xác nhận.
-  Nạp firmware chỉ qua trình cập nhật chính hãng, mở khi người dùng bấm, và người dùng tự bấm Start.
-- Nếu ứng dụng hay máy tắt giữa lúc ghi, lần mở sau nó đọc bàn phím, so với bản sao lưu và với nội dung định ghi, rồi
-  đề nghị khôi phục.
-- Layer gắn với profile của FILCO Assist (đọc `%APPDATA%\FILCO\filco_assist_config.json`, chỉ đọc) được cảnh báo:
-  lưu profile đó trong FILCO Assist sẽ dựng lại cả layer và xóa thay đổi làm ở đây.
-- Khi đang giữ Fn, firmware bỏ qua ô layer; lớp Fn nằm cố định trong firmware, ứng dụng này không đổi được.
+- The app never flashes firmware by itself and sends no command other than page read (0x10), firmware info block read
+  (0x30), page write (0x11) and finish (0x02). The transport layer blocks in code every write packet outside a confirmed
+  write flow. Firmware is flashed only through the official updater, opened when you press the button, and you press
+  Start yourself.
+- If the app or the computer stops during a write, the next launch reads the keyboard, compares it with the backup and
+  the intended content, and offers to restore.
+- A layer tied to a FILCO Assist profile (read from `%APPDATA%\FILCO\filco_assist_config.json`, read-only) gets a warning:
+  saving that profile in FILCO Assist rebuilds the whole layer and erases changes made here.
+- While Fn is held the firmware ignores layer slots; the Fn layer is fixed in the firmware and the Layer pages cannot
+  change it.
 
-### Tap-hold theo layer
+### Tap-hold per layer
 
-Thẻ **Tap-hold** ở trang Layer đặt cho phím đang chọn: phím gửi khi chạm, thứ gửi khi giữ (một phím hoặc modifier, hoặc
-giữ để vào layer 1-4) và thời gian quyết định (mặc định 200 ms). Phím nào cũng đặt được, và cùng một phím có tap-hold
-riêng ở từng layer. Giữ quá thời gian, hoặc nhấn phím khác trong lúc giữ, là giữ. Fn + phím vẫn ra chức năng Fn của
-phím (Fn + ; vẫn là Home). Mỗi lúc có một phím đang giữ-ra-phím và một phím đang giữ-vào-layer; phím tap-hold thứ hai
-cùng loại nhấn trong lúc đó làm theo phím mặc định. Ô lưu dạng `08 chạm giữ thời_gian` (thời gian x 10 ms, 0 = 200 ms;
-giữ `f0`-`f3` = layer 1-4).
+The **Tap-hold** tab on a Layer page sets, for the selected key: the key sent on tap, what is sent on hold (a key or a
+modifier, or hold to enter layer 1-4) and the decision time (200 ms by default). Any key can have it, and the same key can
+have its own tap-hold on each layer. Holding past the time, or pressing another key while holding, counts as a hold.
+Fn + key still gives the key's Fn function (Fn + ; is still Home). One key can be holding as a key and one key can be
+holding as a layer at a time; a second tap-hold key of the same kind pressed meanwhile acts as its default key. The slot
+is stored as `08 tap hold time` (time x 10 ms, 0 = 200 ms; hold `f0`-`f3` = layer 1-4).
 
-Firmware gốc đọc ô loại 8 như ô trống, nên tap-hold cần firmware dựng có tap-hold theo layer (TOML
-`layer_tap_hold = true`). Ứng dụng tự lo việc này: khi các layer có tap-hold mà bàn phím chưa chạy firmware đó, **Lưu**
-dựng và kiểm thử firmware trước (bản nháp trang Firmware cộng tap-hold theo layer), bảng khác biệt báo
-CheckSum sẽ nạp, rồi sau khi ghi layer ứng dụng sao lưu và mở trình cập nhật. Người dùng chỉ kiểm CheckSum và bấm
-Start; bàn phím cắm lại thì ứng dụng kiểm firmware và layer. Nạp firmware không đụng tới các trang layer. Nếu bỏ ngang,
-nút Lưu thành **Cập nhật firmware cho tap-hold** cho tới khi nạp xong.
+The stock firmware reads a type 8 slot as empty, so tap-hold needs a firmware built with per-layer tap-hold (TOML
+`layer_tap_hold = true`). The app takes care of this: when layers have tap-hold and the keyboard does not run such a
+firmware yet, **Save** first builds and tests one (the Firmware page draft plus per-layer tap-hold), the differences table
+reports the CheckSum to be flashed, and after writing the layers the app makes a backup and opens the updater. You only
+check the CheckSum and press Start; when the keyboard reconnects the app checks the firmware and the layers. Flashing does
+not touch the layer pages. If you stop half way, the Save button becomes **Update firmware for tap-hold** until the flash
+is done.
 
-Bàn phím đang chạy tap-hold kiểu cũ (đặt cố định trong firmware, mục dưới): lần đầu đặt tap-hold cho một phím, hay sửa
-một phím tap-hold kiểu cũ, ứng dụng chuyển các tap-hold đó vào ô của cả 4 layer trong cùng bước hoàn tác, nên chúng vẫn
-chạy như cũ sau khi nạp.
+On a keyboard running the older kind of tap-hold (fixed in the firmware, next section): the first time you set tap-hold on
+a key, or edit an older tap-hold key, the app moves those tap-holds into the slots of all 4 layers in the same undo step,
+so they keep working after the flash.
 
-### Tap-hold kiểu cũ và cấu hình trong firmware
+### Older tap-hold and configuration in the firmware
 
-Nếu bàn phím đang chạy một bản firmware tùy biến có khối thông tin (lệnh HID 0x30), ứng dụng đọc và **hiển thị** các
-thay đổi đó: phím tap-hold vẽ hành động khi giữ (nhỏ, phía trên) và khi gõ nhanh (nhãn chính), phím "giữ để vào
-layer" được tô đậm trên layer đó, và inspector hiện chi tiết tap-hold cùng các thay đổi Fn + phím. Sửa một phím
-tap-hold kiểu cũ ở trang Layer chuyển chúng sang tap-hold theo layer (mục trên). Firmware gốc (hay bản vá cũ không có
-khối) trả NACK và ứng dụng chỉ không hiện phần này.
+If the keyboard runs a custom firmware with an info block (HID command 0x30), the app reads and **displays** those changes:
+a tap-hold key shows its hold action (small, at the top) and its tap action (main label), a "hold to enter layer" key is
+highlighted on that layer, and the inspector shows the tap-hold details and the Fn + key changes. Editing an older
+tap-hold key on a Layer page converts it to per-layer tap-hold (section above). The stock firmware (or an older patch
+without the block) answers NACK and the app just does not show this part.
 
-### Trang Firmware: sửa, dựng, kiểm thử, nạp
+### Firmware page: edit, build, test, flash
 
-Tab **Firmware** (sau Layer 4) sửa phần nằm trong firmware: Fn + phím và keymap mặc định. Tap-hold không đặt ở đây
-mà ở trang Layer (mục trên); bản nháp giữ nguyên tap-hold kiểu cũ của bàn phím, nếu có, và không tạo tap-hold kiểu cũ
-mới. Thiết kế: `docs/FIRMWARE_UI_DESIGN.md`.
+The **Firmware** tab (after Layer 4) edits what lives in the firmware: Fn + key and the default keymap. Tap-hold is not set
+here but on the Layer pages (above); the draft keeps the keyboard's older tap-hold, if any, and creates no new older
+tap-hold. Design: `docs/FIRMWARE_UI_DESIGN.md` (Vietnamese).
 
-1. Bàn phím trên hình vẽ Fn + phím: chức năng Fn là nhãn lớn, tên phím nhỏ ở trên, phím không có chức năng Fn để trống.
-   Nhấp chuột, di chuyển chuột, cuộn và âm lượng vẽ bằng icon như manual. Chọn một phím rồi sửa ở bảng dưới
-   (Fn + phím, Mặc định). Mỗi thay đổi được vá thử ngay trên firmware V72 gốc; thay đổi firmware không cho
-   phép (hết 39 mục Fn, phím Fn, W/R/X/C phụ thuộc bố cục...) bị từ chối kèm lý do.
-2. Bản nháp tự lưu (`%LOCALAPPDATA%\FilcoConfigurator\firmware_draft.toml`); Ctrl+Z / Ctrl+Y, xuất / nhập TOML ở menu
-   **Thêm**. Bản nháp bắt đầu từ cấu hình đang chạy trên bàn phím (đọc từ khối thông tin), hoặc V72 gốc nếu không có.
-3. **Dựng và kiểm thử**: đặt tên rồi dựng (3-4 giây). Firmware được chạy trên giả lập (so từng phím với bản gốc, Fn,
-   đổi layer, tap-hold, lệnh 0x30, độ sâu stack); trình cập nhật chỉ được tạo khi mọi kiểm thử đạt. Kết quả ở
-   `%LOCALAPPDATA%\FilcoConfigurator\firmware\<tên>\`. Khối thông tin luôn được thêm.
-4. **Nạp lên bàn phím...**: ứng dụng sao lưu 4 layer, kiểm FILCO Assist đã thoát, rồi mở trình cập nhật chính hãng.
-   Người dùng kiểm dòng `CheckSum` đúng số ứng dụng hiện, rồi tự bấm Start. Bàn phím khởi động lại; ứng dụng đọc khối
-   thông tin, xác nhận đúng bản vừa dựng và báo layer nào bị đổi so với trước khi nạp.
+1. The keyboard picture shows Fn + key: the Fn function is the large label, the key name is small on top, and a key with
+   no Fn function stays blank. Mouse clicks, mouse movement, scrolling and volume are drawn as icons, like the manual.
+   Select a key, then edit in the panel below (Fn + key, Default). Each change is trial-patched at once onto the stock V72
+   firmware; a change the firmware does not allow (out of the 39 Fn entries, the Fn key, W/R/X/C depending on the layout...)
+   is refused with a reason.
+2. The draft saves itself (`%LOCALAPPDATA%\FilcoConfigurator\firmware_draft.toml`); Ctrl+Z / Ctrl+Y, and TOML export and
+   import in the **More** menu. The draft starts from the configuration running on the keyboard (read from the info
+   block), or stock V72 if there is none.
+3. **Build and test**: give it a name and build (3-4 seconds). The firmware runs in an emulator (each key compared with the
+   stock one, Fn, layer switching, tap-hold, command 0x30, stack depth); the updater is made only when every test passes.
+   Results go to `%LOCALAPPDATA%\FilcoConfigurator\firmware\<name>\`. The info block is always added.
+4. **Flash to the keyboard...**: the app backs up the 4 layers, checks that FILCO Assist has quit, then opens the official
+   updater. Check that the `CheckSum` line is the number the app shows, then press Start yourself. The keyboard restarts;
+   the app reads the info block, confirms it is the build you just made, and reports any layer changed since before the
+   flash.
 
-Dựng không cần giao diện (offline, không mở bàn phím, không chạy trình cập nhật):
+To build without the UI (offline, without opening the keyboard or running the updater):
 
 ```powershell
 cargo run --release -p filco-cli -- firmware-build <config.toml> [--stock firmware] [--out out]
 ```
 
-Cấu hình là file TOML cùng định dạng `custom.toml` của repo phân tích (ví dụ trong `tests/fixtures/firmware/*/config.toml`).
-Kết quả ở `out/<name>/`; trình cập nhật chỉ được dựng khi mọi kiểm thử trên giả lập đạt, và người dùng tự chạy nó,
-kiểm dòng `CheckSum` đúng tag in ra rồi mới bấm Start. Chi tiết: `docs/DEFERRED_FIRMWARE_BUILD.md`.
+The configuration is a TOML file (examples in `tests/fixtures/firmware/*/config.toml`). Results go to `out/<name>/`; the
+updater is built only when every emulator test passes, and you run it yourself, check that the `CheckSum` line matches the
+printed tag, and only then press Start. Details: `docs/DEFERRED_FIRMWARE_BUILD.md` (Vietnamese).
 
-Bộ cài kèm sẵn firmware V72 gốc và trình cập nhật chính hãng (thư mục `firmware/`, xem `firmware/README.md`)
-để nạp được trên máy khác mà không cần gì thêm.
+The installer includes the stock V72 firmware and the official updater (the `firmware/` folder, see `firmware/README.md`)
+so that flashing works on another machine with nothing else to install.
 
-## Thêm một model
+## Adding a model
 
-Mô tả model là dữ liệu, không phải code: một file JSON trong `models/`, kiểm bằng `models/schema/model.schema.json`
-(sinh từ kiểu Rust) và các kiểm tra ngữ nghĩa trong `filco-core`.
+A model description is data, not code: one JSON file in `models/`, checked against `models/schema/model.schema.json`
+(generated from the Rust types) and by the semantic checks in `filco-core`.
 
-- `match`: VID, danh sách PID, caps HID của cổng cấu hình (FILCO Assist lọc theo usage page 1, input 9, output 2,
+- `match`: VID, list of PIDs, HID caps of the configuration port (FILCO Assist filters on usage page 1, input 9, output 2,
   feature 65).
-- `protocol`: biến thể giao thức (`costar-v1`), độ dài gói, cách đặt ô trong trang (`costar-interleaved-8`), khoảng
-  chờ đọc / ghi. Model mới để 100 ms cho cả hai tới khi đo được trên máy thật.
-- `layers`: nhãn và màu đèn LED từng layer.
-- `slot_types`: loại ô sửa được (0-4) và chỉ hiển thị.
-- `layout.keys`: từng phím với `id`, chỉ số ma trận `index`, tọa độ `x`/`y` và kích thước `w`/`h` theo đơn vị phím,
-  chữ in `legend`, `default_usage` (mã HID chuẩn của chữ in), `tags` (`m-key`, `unverified`), `note`.
-- `support`: `read_only` (chỉ đọc), `experimental` (cho ghi kèm cảnh báo) hoặc `verified`.
+- `protocol`: protocol variant (`costar-v1`), packet length, how slots sit in a page (`costar-interleaved-8`), read and
+  write delays. A new model uses 100 ms for both until measured on real hardware.
+- `layers`: label and LED colour of each layer.
+- `slot_types`: slot types that can be edited (0-4) and those only displayed.
+- `layout.keys`: each key with `id`, matrix index `index`, position `x`/`y` and size `w`/`h` in key units, printed `legend`,
+  `default_usage` (the standard HID code of the legend), `tags` (`m-key`, `unverified`), `note`.
+- `support`: `read_only`, `experimental` (writing allowed with a warning) or `verified`.
 
-Kiểm một file: `cargo run -p filco-cli -- validate-model models\my-model.json`. Thêm file vào danh sách
-`builtin::models()` trong `crates/filco-core/src/model.rs` rồi chạy `pwsh scripts/check.ps1`. Model M10SP US được sinh
-từ `tools/gen_m10sp_model.py` để hàng phím dễ đọc; viết JSON tay cũng được.
+Check one file: `cargo run -p filco-cli -- validate-model models\my-model.json`. Add the file to the `builtin::models()`
+list in `crates/filco-core/src/model.rs`, then run `pwsh scripts/check.ps1`. The M10SP US model is generated by
+`tools/gen_m10sp_model.py` to keep the key rows readable; writing JSON by hand works too.
 
-## Build từ mã nguồn
+## Build from source
 
-### Máy có Visual Studio (cách thường)
+### With Visual Studio (the usual way)
 
-Cần: Visual Studio 2022 Build Tools với workload *Desktop development with C++* (MSVC + Windows SDK), Rust qua rustup
-(phiên bản ghim trong `rust-toolchain.toml`), Node.js 22 trở lên.
+Needs: Visual Studio 2022 Build Tools with the *Desktop development with C++* workload (MSVC and the Windows SDK), Rust
+through rustup (version pinned in `rust-toolchain.toml`), Node.js 22 or newer.
 
 ```powershell
 npm ci
-npx tauri build            # bộ cài: target\release\bundle\nsis\
-pwsh scripts/check.ps1     # format, lint, kiểu, toàn bộ test
+npx tauri build            # installer: target\release\bundle\nsis\
+pwsh scripts/check.ps1     # format, lint, types, all tests
 ```
 
-Hoặc `pwsh scripts/release.ps1 [-InstallTest]`: build bộ cài, kiểm kích thước, ghi file `.sha256`, thử cài / gỡ im
-lặng.
+Or `pwsh scripts/release.ps1 [-InstallTest]`: builds the installer, checks its size, writes the `.sha256` file, and tries a
+silent install and uninstall.
 
-### Máy không có quyền admin và không có Visual Studio (cách repo này được build)
+### Without admin rights and without Visual Studio
 
-Không cần thay gì trong repo; chỉ cấu hình máy, trong `%USERPROFILE%\.cargo\config.toml` (xem `docs/DECISIONS.md` D1):
+Nothing changes in the repository; only the machine is configured, in `%USERPROFILE%\.cargo\config.toml` (see
+`docs/DECISIONS.md` D1, Vietnamese):
 
-1. Rust: chạy `rustup-init.exe` (host `x86_64-pc-windows-msvc`).
-2. CRT + Windows SDK của Microsoft bằng [`xwin`](https://github.com/Jake-Shadle/xwin):
+1. Rust: run `rustup-init.exe` (host `x86_64-pc-windows-msvc`).
+2. Microsoft's CRT and Windows SDK with [`xwin`](https://github.com/Jake-Shadle/xwin):
    `xwin --accept-license splat --output %LOCALAPPDATA%\xwin-msvc\splat --disable-symlinks
-   --preserve-ms-arch-notation` (chấp nhận giấy phép của Microsoft). `cargo-xwin` cũng làm được việc này trên máy cho
-   phép tạo symlink (Developer Mode bật); trên máy không cho, dùng thẳng `xwin` như trên.
-3. LLVM bản portable (cần `clang-cl`, `llvm-rc`, `llvm-lib`) cho build script của Tauri.
+   --preserve-ms-arch-notation` (this accepts Microsoft's license). `cargo-xwin` also does this on a machine that allows
+   symlinks (Developer Mode on); where it does not, use `xwin` directly as above.
+3. A portable LLVM (`clang-cl`, `llvm-rc`, `llvm-lib` are needed) for Tauri's build script.
 4. `config.toml`:
 
    ```toml
@@ -190,47 +205,57 @@ Không cần thay gì trong repo; chỉ cấu hình máy, trong `%USERPROFILE%\.
                 "-Lnative=<splat>\\sdk\\lib\\ucrt\\x86_64"]
    ```
 
-Khi cài Build Tools bình thường, xóa các mục này là xong.
+Once the Build Tools are installed normally, delete these entries.
 
-## Kiểm thử
+## Testing
 
-| Lệnh | Nội dung |
+| Command | What it does |
 |---|---|
-| `pwsh scripts/check.ps1` | quy tắc văn bản, `cargo fmt`, `clippy -D warnings` (cả bản `e2e-sim`), mọi test Rust (codec vét cạn 2^32 ô ở chế độ release), `cargo deny` (giấy phép, nguồn), prettier, eslint, svelte-check, vitest |
-| `pwsh scripts/e2e.ps1 [-Runs 3] [-Perf] [-Screenshots]` | build bản `e2e-sim` (bàn phím giả sau IPC thật) rồi chạy test E2E qua WebDriver, so ảnh chuẩn, đo hiệu năng, chụp mọi màn hình |
-| `cargo bench -p filco-service` / `-p filco-hid-windows` | chi phí đọc 4 layer, liệt kê HID |
-| `pwsh scripts/release.ps1 -InstallTest` | bộ cài, ngân sách kích thước, SHA-256, cài / gỡ |
+| `pwsh scripts/check.ps1` | text rules, `cargo fmt`, `clippy -D warnings` (also the `e2e-sim` build), all Rust tests (the codec exhaustively over 2^32 slots in release mode), `cargo deny` (licenses, sources), prettier, eslint, svelte-check, vitest |
+| `pwsh scripts/e2e.ps1 [-Runs 3] [-Perf] [-Screenshots]` | builds the `e2e-sim` version (a simulated keyboard behind the real IPC), then runs the E2E tests through WebDriver, compares baseline images, measures performance, captures every screen |
+| `cargo bench -p filco-service` / `-p filco-hid-windows` | cost of reading 4 layers, HID enumeration |
+| `pwsh scripts/release.ps1 -InstallTest` | installer, size budget, SHA-256, install and uninstall |
 
-`check.ps1` cần `cargo-deny` (`cargo install cargo-deny --locked`). E2E cần `tauri-driver` (`cargo install tauri-driver --locked`) và `msedgedriver` cùng phiên bản chính với WebView2
-Runtime của máy (đặt đường dẫn vào biến `MSEDGEDRIVER`, hoặc giải nén vào `%LOCALAPPDATA%\kle-tools\edgedriver-<bản>`).
+`check.ps1` needs `cargo-deny` (`cargo install cargo-deny --locked`). E2E needs `tauri-driver`
+(`cargo install tauri-driver --locked`) and an `msedgedriver` of the same major version as the machine's WebView2 Runtime
+(set its path in the `MSEDGEDRIVER` variable, or unpack it into `%LOCALAPPDATA%\kle-tools\edgedriver-<version>`).
 
-## Cấu trúc
+GitHub Actions runs `check.ps1` and `release.ps1 -InstallTest` on each pull request and push to `main`. It does not run E2E,
+since the baseline images depend on the machine (DPI, font rendering): run `scripts/e2e.ps1` locally.
 
-| Thư mục | Nội dung |
+## Releasing
+
+Set the same version in `src-tauri/tauri.conf.json`, `package.json` and `Cargo.toml`, merge to `main`, then push a matching
+tag, for example `git tag v0.2.0 && git push origin v0.2.0`. The `Release` workflow checks the code, builds the installer
+and publishes it with its `.sha256` file as a pre-release.
+
+## Layout
+
+| Folder | Content |
 |---|---|
-| `crates/filco-core` | ô, trang, diff, mô tả model + schema, sao lưu kiểu `fnmap.py`, file xuất |
-| `crates/filco-protocol` | gói feature report, checksum, phiên đọc / ghi trang, chặn ghi (`WritePolicy`) |
-| `crates/filco-sim` | bàn phím giả theo giao thức, tiêm lỗi, khối thông tin cho 0x30 |
-| `crates/filco-fwinfo` | giải mã khối thông tin firmware (lệnh 0x30), chỉ đọc |
-| `crates/filco-hid-windows` | HID thật trên Windows (chỗ duy nhất có `unsafe`) |
-| `crates/filco-service` | phiên sửa + undo, luồng ghi an toàn, kho sao lưu, journal, chặn FILCO Assist |
-| `crates/filco-cli` | công cụ dòng lệnh cho dev: chỉ đọc bàn phím (`list`, `caps`, `read`, `decode`, `validate-model`); `firmware-build` dựng + kiểm firmware offline |
-| `crates/thumb` | assembler và decoder Thumb ARMv6-M (Cortex-M0) cho code chèn vào firmware |
-| `crates/filco-firmware` | dựng ảnh V72 tùy biến từ bản gốc: HEX, bảng Fn / keymap, code tap-hold, khối thông tin + lệnh 0x30 |
-| `crates/m0emu` | trình thông dịch Cortex-M0 thuần Rust, dừng ở lệnh chưa mô hình hóa |
-| `crates/filco-fwtest` | chạy firmware thật trong `m0emu`, so với bản gốc từng phím, tap-hold, 0x30 qua HID giả, độ sâu stack |
-| `crates/filco-updater` | dựng trình cập nhật từ bản chính hãng (ZIP trong tài nguyên RT_RCDATA 4011) |
-| `crates/filco-fwbuild` | luồng dựng: ảnh, HEX, kiểm thử, và chỉ khi mọi kiểm thử đạt mới dựng trình cập nhật |
-| `src-tauri` | ứng dụng: trạng thái, lệnh IPC mỏng, kiểu IPC sinh sang TypeScript |
-| `ui` | giao diện Svelte |
-| `models` | mô tả model JSON và schema |
-| `firmware` | firmware V72 gốc + trình cập nhật chính hãng, kèm trong bộ cài |
-| `tests` | fixtures (trang layer của chính người dùng, ghi nguồn, firmware golden), golden bytes từ `fnmap.py`, E2E |
-| `docs` | bản giao việc, kế hoạch, quyết định, trạng thái, ảnh chụp |
+| `crates/filco-core` | slots, pages, diff, model description and schema, `fnmap.py`-style backups, export files |
+| `crates/filco-protocol` | feature report packets, checksum, page read and write sessions, write blocking (`WritePolicy`) |
+| `crates/filco-sim` | simulated keyboard following the protocol, fault injection, info block for 0x30 |
+| `crates/filco-fwinfo` | decodes the firmware info block (command 0x30), read-only |
+| `crates/filco-hid-windows` | real HID on Windows (the only place with `unsafe`) |
+| `crates/filco-service` | edit session with undo, safe write flow, backup store, journal, FILCO Assist blocking |
+| `crates/filco-cli` | developer command line tool: reads the keyboard only (`list`, `caps`, `read`, `decode`, `validate-model`); `firmware-build` builds and tests firmware offline |
+| `crates/thumb` | Thumb ARMv6-M (Cortex-M0) assembler and decoder for the code inserted into the firmware |
+| `crates/filco-firmware` | builds custom V72 images from the stock one: HEX, Fn and keymap tables, tap-hold code, info block and command 0x30 |
+| `crates/m0emu` | pure Rust Cortex-M0 interpreter, stops at instructions it does not model |
+| `crates/filco-fwtest` | runs the real firmware in `m0emu`, compares each key with stock, tap-hold, 0x30 over a fake HID, stack depth |
+| `crates/filco-updater` | builds an updater from the official one (ZIP in RT_RCDATA resource 4011) |
+| `crates/filco-fwbuild` | the build flow: image, HEX, tests, and the updater only when every test passes |
+| `src-tauri` | the app: state, thin IPC commands, IPC types generated into TypeScript |
+| `ui` | Svelte interface |
+| `models` | JSON model descriptions and schema |
+| `firmware` | stock V72 firmware and official updater, included in the installer |
+| `tests` | fixtures (the author's own layer pages, sources noted, golden firmware), golden bytes from `fnmap.py`, E2E |
+| `docs` | assignment, plan, decisions, status, screenshots (mostly Vietnamese) |
 
-## Giấy phép
+## License
 
-Mã nguồn theo giấy phép MIT (xem `LICENSE`). Font IBM Plex đi kèm theo giấy phép SIL Open Font License 1.1.
+The source code is under the MIT license (see `LICENSE`). The bundled IBM Plex fonts are under the SIL Open Font License 1.1.
 
-Giấy phép MIT không áp dụng cho firmware V72 gốc và trình cập nhật chính hãng của Diatec/FILCO trong `firmware/`, kèm
-trong bộ cài để nạp, và các bản firmware dựng từ đó trong `tests/fixtures/firmware/` (xem `firmware/README.md`).
+The MIT license does not cover the stock V72 firmware and the official updater of Diatec / FILCO in `firmware/`, included in
+the installer for flashing, nor the firmware builds made from them in `tests/fixtures/firmware/` (see `firmware/README.md`).
