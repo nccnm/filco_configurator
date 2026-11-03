@@ -13,13 +13,13 @@ firmware đã chạy thành công trên một bàn phím thật của tác giả
 
 ## Cài đặt
 
-1. Tải `filco keyboard keymap_<phiên bản>_x64-setup.exe` và file `.sha256` đi kèm từ
+1. Tải `filco.keyboard.keymap_<phiên bản>_x64-setup.exe` và file `.sha256` đi kèm từ
    [GitHub Releases](https://github.com/nccnm/filco_configurator/releases).
 2. Kiểm mã băm trong PowerShell, hai chuỗi phải giống nhau:
 
    ```powershell
-   (Get-FileHash '.\filco keyboard keymap_0.1.0_x64-setup.exe' -Algorithm SHA256).Hash.ToLower()
-   Get-Content '.\filco keyboard keymap_0.1.0_x64-setup.exe.sha256'
+   (Get-FileHash '.\filco.keyboard.keymap_0.1.0_x64-setup.exe' -Algorithm SHA256).Hash.ToLower()
+   Get-Content '.\filco.keyboard.keymap_0.1.0_x64-setup.exe.sha256'
    ```
 
 3. Chạy bộ cài. Bộ cài **chưa ký số**, nên Windows SmartScreen có thể báo "Windows protected your PC": bấm *More info*
