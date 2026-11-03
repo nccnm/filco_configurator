@@ -49,7 +49,7 @@ riêng file này.
 
 ### D6. Tên sản phẩm (người dùng chọn)
 
-Tên làm việc "Keyboard Layer Editor", định danh `io.github.keyboard-layer-editor`. Đổi tên: `productName` và
+Tên "filco keyboard keymap" (người dùng chọn, trước đó là "Keyboard Layer Editor"), định danh `io.github.nccnm.keyboard-layer-editor`. Đổi tên: `productName` và
 `title` trong `src-tauri/tauri.conf.json`, hằng số `PRODUCT_NAME` trong UI.
 
 ### D7. Mã hóa ô loại 3 và 4 (M1)

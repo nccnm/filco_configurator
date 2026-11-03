@@ -5,9 +5,8 @@ nạp firmware lên bàn phím của chính mình.
 
 ## License
 
-Firmware và trình cập nhật trong thư mục này là phần mềm có bản quyền của Diatec Corporation / FILCO. Người dùng
-(chủ repo này) có license sử dụng cho bàn phím của mình. **Không** phân phối lại ra ngoài; repo này là private và
-không được chuyển sang public khi còn chứa các file này.
+Firmware và trình cập nhật trong thư mục này là phần mềm có bản quyền của Diatec Corporation / FILCO, không thuộc giấy
+phép MIT của repo.
 
 ## File và SHA-256
 

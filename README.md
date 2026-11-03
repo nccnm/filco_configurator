@@ -1,4 +1,4 @@
-# Keyboard Layer Editor
+# filco keyboard keymap
 
 Trình chỉnh layer **không chính thức** cho bàn phím FILCO dùng FILCO Assist, kiểu VIA: chọn layer, bấm phím trên
 hình, chọn hành động (phím, tổ hợp modifier, media, chuột, lệnh hệ thống), xem khác biệt, ghi xuống bàn phím. Viết bằng
@@ -8,22 +8,23 @@ Rust + Tauri 2 + Svelte 5, chạy trên Windows 10/11. Không liên quan và kh�
 Majestouch Xacro M10SP US). Every write shows a diff, needs a confirmation, is backed up first and read back byte for
 byte. Windows only.*
 
-Model hiện có: **Majestouch Xacro M10SP US** (VID 0x2EFD, PID 0x1972), mức `experimental`: đọc đã kiểm trên bàn phím
-thật, ghi đã kiểm trên thiết bị giả và đang chờ kiểm trên bàn phím thật (xem `docs/STATUS.md`).
+Model hiện có: **Majestouch Xacro M10SP US** (VID 0x2EFD, PID 0x1972), mức `experimental`: đọc, ghi layer và nạp
+firmware đã chạy thành công trên một bàn phím thật của tác giả, chưa thử trên máy khác.
 
 ## Cài đặt
 
-1. Tải `Keyboard Layer Editor_<phiên bản>_x64-setup.exe` và file `.sha256` đi kèm.
+1. Tải `filco keyboard keymap_<phiên bản>_x64-setup.exe` và file `.sha256` đi kèm từ
+   [GitHub Releases](https://github.com/nccnm/filco_configurator/releases).
 2. Kiểm mã băm trong PowerShell, hai chuỗi phải giống nhau:
 
    ```powershell
-   (Get-FileHash '.\Keyboard Layer Editor_0.1.0_x64-setup.exe' -Algorithm SHA256).Hash.ToLower()
-   Get-Content '.\Keyboard Layer Editor_0.1.0_x64-setup.exe.sha256'
+   (Get-FileHash '.\filco keyboard keymap_0.1.0_x64-setup.exe' -Algorithm SHA256).Hash.ToLower()
+   Get-Content '.\filco keyboard keymap_0.1.0_x64-setup.exe.sha256'
    ```
 
 3. Chạy bộ cài. Bộ cài **chưa ký số**, nên Windows SmartScreen có thể báo "Windows protected your PC": bấm *More info*
    rồi *Run anyway* (chỉ làm vậy khi mã băm đã khớp). Bộ cài cài cho người dùng hiện tại, không cần quyền admin, vào
-   `%LOCALAPPDATA%\Keyboard Layer Editor`; gỡ trong *Settings > Apps*.
+   `%LOCALAPPDATA%\filco keyboard keymap`; gỡ trong *Settings > Apps*.
 
 Cần WebView2 Runtime (có sẵn trên Windows 11; bộ cài tự tải nếu thiếu).
 
@@ -123,7 +124,7 @@ Cấu hình là file TOML cùng định dạng `custom.toml` của repo phân t�
 Kết quả ở `out/<name>/`; trình cập nhật chỉ được dựng khi mọi kiểm thử trên giả lập đạt, và người dùng tự chạy nó,
 kiểm dòng `CheckSum` đúng tag in ra rồi mới bấm Start. Chi tiết: `docs/DEFERRED_FIRMWARE_BUILD.md`.
 
-Bộ cài kèm sẵn firmware V72 gốc và trình cập nhật chính hãng (thư mục `firmware/`, có license, xem `firmware/README.md`)
+Bộ cài kèm sẵn firmware V72 gốc và trình cập nhật chính hãng (thư mục `firmware/`, xem `firmware/README.md`)
 để nạp được trên máy khác mà không cần gì thêm.
 
 ## Thêm một model
@@ -223,15 +224,13 @@ Runtime của máy (đặt đường dẫn vào biến `MSEDGEDRIVER`, hoặc gi
 | `src-tauri` | ứng dụng: trạng thái, lệnh IPC mỏng, kiểu IPC sinh sang TypeScript |
 | `ui` | giao diện Svelte |
 | `models` | mô tả model JSON và schema |
-| `firmware` | firmware V72 gốc + trình cập nhật chính hãng (có license), kèm trong bộ cài |
+| `firmware` | firmware V72 gốc + trình cập nhật chính hãng, kèm trong bộ cài |
 | `tests` | fixtures (trang layer của chính người dùng, ghi nguồn, firmware golden), golden bytes từ `fnmap.py`, E2E |
 | `docs` | bản giao việc, kế hoạch, quyết định, trạng thái, ảnh chụp |
 
 ## Giấy phép
 
-Chưa chọn (người dùng quyết định trước khi chia sẻ). Font IBM Plex đi kèm theo giấy phép SIL Open Font License 1.1.
+Mã nguồn theo giấy phép MIT (xem `LICENSE`). Font IBM Plex đi kèm theo giấy phép SIL Open Font License 1.1.
 
-Repo **có chứa** firmware V72 gốc và trình cập nhật chính hãng của Diatec/FILCO trong `firmware/` (người dùng có
-license; xem `firmware/README.md`), kèm trong bộ cài để nạp. Vì vậy repo này là private và không được chuyển sang
-public khi còn các file đó. Ngoài firmware và trình cập nhật đó, phần còn lại không chứa code dịch ngược hay file nhị
-phân nào của Diatec; giao thức và bố cục được mô tả lại ở dạng dữ liệu và tài liệu tự viết.
+Giấy phép MIT không áp dụng cho firmware V72 gốc và trình cập nhật chính hãng của Diatec/FILCO trong `firmware/`, kèm
+trong bộ cài để nạp, và các bản firmware dựng từ đó trong `tests/fixtures/firmware/` (xem `firmware/README.md`).

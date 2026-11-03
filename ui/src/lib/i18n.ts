@@ -2,7 +2,7 @@
 import type { UiLang } from "../bindings/ipc";
 
 /** Product name and subtitle: change them here only (and productName in src-tauri/tauri.conf.json). */
-export const PRODUCT_NAME = "Keyboard Layer Editor";
+export const PRODUCT_NAME = "filco keyboard keymap";
 
 const vi = {
   subtitle: "Không chính thức, cho bàn phím FILCO dùng FILCO Assist",
