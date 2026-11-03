@@ -1,12 +1,5 @@
 <script lang="ts">
-  import type {
-    Catalog,
-    FwCodeView,
-    FwEditInput,
-    FwKeyView,
-    FwView,
-    KeyView,
-  } from "../bindings/ipc";
+  import type { Catalog, FwCodeView, FwEditInput, FwKeyView, FwView, KeyView } from "../bindings/ipc";
   import { tick } from "svelte";
   import type { Key } from "../lib/i18n";
   import { centerCurrent } from "../lib/reveal";
